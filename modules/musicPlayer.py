@@ -1,6 +1,8 @@
 import sys
+import easygui
+import modules.filebase as filebase
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QTableWidgetItem
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -18,6 +20,9 @@ class mainWindow(QMainWindow):
                                                             BUTTON_WIDTH, BUTTON_HEIGHT,
                                                             "add to filebase")
 
+        # настройка соединений сигналов со слотами:
+        self.buttonAddToFilebase.clicked.connect(self.addToFilebase)
+
     # возвращает кнопку, левый верхний угол которой расположен
     # на x пунктов правее и на y пунктов ниже левого верхнего
     # угла экрана; с шириной width, высотой height, подписью text.
@@ -27,6 +32,11 @@ class mainWindow(QMainWindow):
         button.setText(text)
 
         return button
+
+    # добавляет файл музыкальной композиции в базу данных плеера.
+    def addToFilebase(self):
+        fileToAddPath = easygui.fileopenbox(filetypes="*.mp3, *.flac", multiple=False)
+        filebase.addRowToFilebase(fileToAddPath)
 
 # запускает приложение музыкального плеера.
 def runApplication():

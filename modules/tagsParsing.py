@@ -49,9 +49,10 @@ def getKeysDict(tagsDict):
 # тегов в формате строки.
 def getInfoFromTagsDictByKey(tagsDict, key):
     keysDict = getKeysDict(tagsDict)
-    tag = tagsDict[keysDict[key]][0]
 
-    if isinstance(tag, mutagen.id3._specs.ID3TimeStamp):
-        tag = str(tag)
+    return str(tagsDict[keysDict[key]][0])
 
-    return tag
+# дополняет список информации о музыкальной композиции данными из тегов.
+def complementTrackInfoList(tagsDict, infoList):
+    for key in getKeysDict(tagsDict):
+        infoList.append(getInfoFromTagsDictByKey(tagsDict, key))
