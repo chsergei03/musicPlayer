@@ -2,7 +2,8 @@ import sys
 import easygui
 import modules.filebase as filebase
 
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QMainWindow, \
+                            QPushButton, QTableWidget, QTableWidgetItem
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -10,15 +11,28 @@ class mainWindow(QMainWindow):
         super(mainWindow, self).__init__()
 
         # настройка параметров окна:
+        WINDOW_X, WINDOW_Y = 0, 0
         WINDOW_WIDTH, WINDOW_HEIGHT = 400, 400
         self.setWindowTitle("music player")
-        self.setGeometry(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.setGeometry(WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT)
 
         # настройка кнопок:
         BUTTON_WIDTH, BUTTON_HEIGHT = 400, 50
-        self.buttonAddToFilebase = self.getConfiguredButton(0, 0,
+
+        BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
+        self.buttonAddToFilebase = self.getConfiguredButton(BUTTON_ADDTOFILEBASE_X,
+                                                            BUTTON_ADDTOFILEBASE_Y,
                                                             BUTTON_WIDTH, BUTTON_HEIGHT,
                                                             "add to filebase")
+
+        # настройка табличного списка музыкальных композиций:
+        TABLELIST_X, TABLELIST_Y = 0, 60
+        TABLELIST_WIDTH, TABLELIST_HEIGHT = 400, 300
+        self.tableList = QTableWidget(self)
+        self.tableList.setGeometry(TABLELIST_X, TABLELIST_Y, TABLELIST_WIDTH, TABLELIST_HEIGHT)
+        self.tableList.setColumnCount(2)
+        self.tableList.setHorizontalHeaderLabels(["title", "artist"])
+        self.loadTracksInFilebaseToTableList()
 
         # настройка соединений сигналов со слотами:
         self.buttonAddToFilebase.clicked.connect(self.addToFilebase)
@@ -32,6 +46,26 @@ class mainWindow(QMainWindow):
         button.setText(text)
 
         return button
+
+    # загружает в табличный список плеера музыкальные композиции
+    # из базы данных приложения
+    def loadTracksInFilebaseToTableList(self):
+        TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 1
+        ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 3
+
+        tracksInFilebaseList = filebase.getAllRowsOfFilebaseList()
+
+        self.tableList.setRowCount(len(tracksInFilebaseList))
+
+        currentRow = 0
+        for track in tracksInFilebaseList:
+            self.tableList.setItem(currentRow, TITLE_INDEXINTABLELIST,
+                                   QTableWidgetItem(track[TITLE_INDEXINFILEBASE]))
+
+            self.tableList.setItem(currentRow, ARTIST_INDEXINTABLELIST,
+                                   QTableWidgetItem(track[ARTIST_INDEXINFILEBASE]))
+
+            currentRow += 1
 
     # добавляет файл музыкальной композиции в базу данных плеера.
     def addToFilebase(self):

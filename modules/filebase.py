@@ -6,20 +6,24 @@ import modules.tagsParsing as tagsParsing
 FILEBASE_PATH = os.path.abspath("data/filebase/filebase.db")
 
 # возвращает объект соединения с базой данных приложения
-# и курсор для работы с содержимым базы данных.
+# и курсор для работы с её содержимым.
 def initConnectionAndCursor(filebasePath):
     connection = sqlite3.connect(filebasePath)
     cursor = connection.cursor()
 
     return connection, cursor
 
+# закрывает курсор для работы с содержимым базы данных
+# приложения и соединение с ней.
+def closeConnectionAndCursor(connection, cursor):
+    cursor.close()
+    connection.close()
+
 # закрепляет изменения в базе данных и закрывает соединение
 # c ней.
 def sustainChanges(connection, cursor):
     connection.commit()
-
-    cursor.close()
-    connection.close()
+    closeConnectionAndCursor(connection, cursor)
 
 # инициализирует базу данных приложения.
 def filebaseInit():
@@ -61,6 +65,19 @@ def addRowToFilebase(fileToAddPath):
 
         cursor.execute(insertQuery, tuple(infoList))
         sustainChanges(connection, cursor)
+
+# возвращает список из строк базы данных приложения
+# (строка представлена в виде кортежа).
+def getAllRowsOfFilebaseList():
+    connection, cursor = initConnectionAndCursor(FILEBASE_PATH)
+
+    selectAllQuery = """SELECT * FROM musicTracks"""
+    cursor.execute(selectAllQuery)
+    allRowsOfFilebaseList = cursor.fetchall()
+
+    closeConnectionAndCursor(connection, cursor)
+
+    return allRowsOfFilebaseList
 
 if not os.path.exists(FILEBASE_PATH):
     filebaseInit()
