@@ -30,6 +30,7 @@ def filebaseInit():
     initConnection, initCursor = initConnectionAndCursor(FILEBASE_PATH)
 
     initCursor.execute("""CREATE TABLE musicTracks(
+        id INTEGER PRIMARY KEY NOT NULL,
         filepath TEXT NOT NULL,
         title TEXT NOT NULL,
         album TEXT NOT NULL,
@@ -38,7 +39,7 @@ def filebaseInit():
         yearRelease INT NOT NULL,
         genre TEXT NOT NULL,
         composer TEXT NOT NULL,
-        nListenings INT NOT NULL);""")
+        nListenings INTEGER NOT NULL);""")
 
     sustainChanges(initConnection, initCursor)
 
@@ -66,8 +67,8 @@ def addRowToFilebase(fileToAddPath):
         cursor.execute(insertQuery, tuple(infoList))
         sustainChanges(connection, cursor)
 
-# возвращает список из строк базы данных приложения
-# (строка представлена в виде кортежа).
+# возвращает список кортежей с данными
+# из строк базы данных приложения.
 def getAllRowsOfFilebaseList():
     connection, cursor = initConnectionAndCursor(FILEBASE_PATH)
 
@@ -79,5 +80,21 @@ def getAllRowsOfFilebaseList():
 
     return allRowsOfFilebaseList
 
-if not os.path.exists(FILEBASE_PATH):
-    filebaseInit()
+# возвращает кортеж с данными из последней строки
+# в базе данных приложения и её номер.
+def getLastRowInFilebaseAndItsIndex():
+    connection, cursor = initConnectionAndCursor(FILEBASE_PATH)
+
+    lastRowInFilebaseQuery = """SELECT * FROM musicTracks ORDER BY id DESC"""
+    cursor.execute(lastRowInFilebaseQuery)
+    lastRowInFilebase = cursor.fetchone()
+
+    closeConnectionAndCursor(connection, cursor)
+
+    return lastRowInFilebase, lastRowInFilebase[0] - 1
+
+# инициализирует базу данных приложения,
+# если её файл не существует.
+def initFilebaseIfNotExists():
+    if not os.path.exists(FILEBASE_PATH):
+        filebaseInit()

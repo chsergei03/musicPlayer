@@ -47,30 +47,49 @@ class mainWindow(QMainWindow):
 
         return button
 
+    # заполняет строку под номером row табличного списка музыкальных композиций
+    # информацией из кортежа track, содержащего информацию о вставляемом треке.
+    def setRowInTableList(self, row, track):
+        TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 2
+        ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 4
+
+        self.tableList.setItem(row, TITLE_INDEXINTABLELIST,
+                               QTableWidgetItem(track[TITLE_INDEXINFILEBASE]))
+
+        self.tableList.setItem(row, ARTIST_INDEXINTABLELIST,
+                               QTableWidgetItem(track[ARTIST_INDEXINFILEBASE]))
+
     # загружает в табличный список плеера музыкальные композиции
     # из базы данных приложения
     def loadTracksInFilebaseToTableList(self):
-        TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 1
-        ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 3
-
         tracksInFilebaseList = filebase.getAllRowsOfFilebaseList()
 
         self.tableList.setRowCount(len(tracksInFilebaseList))
 
         currentRow = 0
         for track in tracksInFilebaseList:
-            self.tableList.setItem(currentRow, TITLE_INDEXINTABLELIST,
-                                   QTableWidgetItem(track[TITLE_INDEXINFILEBASE]))
-
-            self.tableList.setItem(currentRow, ARTIST_INDEXINTABLELIST,
-                                   QTableWidgetItem(track[ARTIST_INDEXINFILEBASE]))
+            self.setRowInTableList(currentRow, track)
 
             currentRow += 1
 
+    # увеличивает количество строк в табличном списке музыкальных
+    # композиций на 1.
+    def incTableListRowCount(self):
+        self.tableList.setRowCount(self.tableList.rowCount() + 1)
+
+    # добавляет строку в табличный список музыкальных композиций.
+    def appendRowToTableList(self):
+        self.incTableListRowCount()
+        lastRowInFilebase, lastRowInFilebaseIndex = filebase.getLastRowInFilebaseAndItsIndex()
+        self.setRowInTableList(lastRowInFilebaseIndex, lastRowInFilebase)
+
     # добавляет файл музыкальной композиции в базу данных плеера.
     def addToFilebase(self):
-        fileToAddPath = easygui.fileopenbox(filetypes="*.mp3, *.flac", multiple=False)
-        filebase.addRowToFilebase(fileToAddPath)
+        filesToAddPaths = easygui.fileopenbox(filetypes="*.mp3, *.flac", multiple=True)
+
+        for fileToAddPath in filesToAddPaths:
+            filebase.addRowToFilebase(fileToAddPath)
+            self.appendRowToTableList()
 
 # запускает приложение музыкального плеера.
 def runApplication():
