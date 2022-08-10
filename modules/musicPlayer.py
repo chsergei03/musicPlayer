@@ -2,8 +2,11 @@ import sys
 import easygui
 import modules.filebase as filebase
 
+from PyQt6.QtCore import Qt
+
 from PyQt6.QtWidgets import QApplication, QMainWindow, \
-                            QPushButton, QTableWidget, QTableWidgetItem
+                            QPushButton, QTableWidget, QTableWidgetItem, \
+                            QAbstractItemView
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -34,6 +37,7 @@ class mainWindow(QMainWindow):
                                    TABLELIST_WIDTH, TABLELIST_HEIGHT)
         self.tableList.setColumnCount(2)
         self.tableList.setHorizontalHeaderLabels(["title", "artist"])
+        self.tableList.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.loadTracksFromMusicTracksTableToTableList()
 
         # настройка соединений сигналов со слотами:
