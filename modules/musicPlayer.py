@@ -20,36 +20,56 @@ class mainWindow(QMainWindow):
         BUTTON_WIDTH, BUTTON_HEIGHT = 400, 50
 
         BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
-        self.buttonAddToFilebase = self.getConfiguredButton(BUTTON_ADDTOFILEBASE_X,
-                                                            BUTTON_ADDTOFILEBASE_Y,
-                                                            BUTTON_WIDTH, BUTTON_HEIGHT,
-                                                            "add to filebase")
+        self.buttonAddToMusicTracksTable = self.getConfiguredButton(
+            BUTTON_ADDTOFILEBASE_X,
+            BUTTON_ADDTOFILEBASE_Y,
+            BUTTON_WIDTH, BUTTON_HEIGHT,
+            "add to filebase")
 
         # настройка табличного списка музыкальных композиций:
         TABLELIST_X, TABLELIST_Y = 0, 60
         TABLELIST_WIDTH, TABLELIST_HEIGHT = 400, 300
         self.tableList = QTableWidget(self)
-        self.tableList.setGeometry(TABLELIST_X, TABLELIST_Y, TABLELIST_WIDTH, TABLELIST_HEIGHT)
+        self.tableList.setGeometry(TABLELIST_X, TABLELIST_Y,
+                                   TABLELIST_WIDTH, TABLELIST_HEIGHT)
         self.tableList.setColumnCount(2)
         self.tableList.setHorizontalHeaderLabels(["title", "artist"])
-        self.loadTracksInFilebaseToTableList()
+        self.loadTracksFromMusicTracksTableToTableList()
 
         # настройка соединений сигналов со слотами:
-        self.buttonAddToFilebase.clicked.connect(self.addToFilebase)
+        self.buttonAddToMusicTracksTable.clicked.connect(self.addToMusicTracksTable)
 
-    # возвращает кнопку, левый верхний угол которой расположен
-    # на x пунктов правее и на y пунктов ниже левого верхнего
-    # угла экрана; с шириной width, высотой height, подписью text.
     def getConfiguredButton(self, x, y, width, height, text):
+        """
+        возвращает настроенную кнопку.
+        :param x: положение кнопки по горизонтали относительно
+        левого верхнего угла (показывает, на сколько пунктов
+        кнопка расположена правее левого верхнего угла);
+        :param y: положение кнопки по вертикали относительно
+        левого верхнего угла (показывает, на сколько пунктов
+        кнопка расположена ниже левого верхнего угла);
+        :param width: ширина кнопки;
+        :param height: высота кнопки;
+        :param text: текст на кнопке.
+        :return: кнопка button (объект класса QPushButton).
+        """
+
         button = QPushButton(self)
         button.setGeometry(x, y, width, height)
         button.setText(text)
 
         return button
 
-    # заполняет строку под номером row табличного списка музыкальных композиций
-    # информацией из кортежа track, содержащего информацию о вставляемом треке.
     def setRowInTableList(self, row, track):
+        """
+        заполняет строку табличного списка музыкальных композиций
+        информацией о треке.
+        :param row: индекс строки табличного списка музыкальных композиций,
+        которая будет заполнена информацией о треке;
+        :param track: кортеж с данными из контректной строки таблицы
+        музыкальных композиций, находящейся в базе данных приложения.
+        """
+
         TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 2
         ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 4
 
@@ -59,10 +79,14 @@ class mainWindow(QMainWindow):
         self.tableList.setItem(row, ARTIST_INDEXINTABLELIST,
                                QTableWidgetItem(track[ARTIST_INDEXINFILEBASE]))
 
-    # загружает в табличный список плеера музыкальные композиции
-    # из базы данных приложения
-    def loadTracksInFilebaseToTableList(self):
-        tracksInFilebaseList = filebase.getAllRowsOfFilebaseList()
+    def loadTracksFromMusicTracksTableToTableList(self):
+        """
+        загружает в табличный список плеера треки из
+        таблицы музыкальных композиций, находящейся в
+        базы данных приложения.
+        """
+
+        tracksInFilebaseList = filebase.getListOfAllRowsOfMusicTracksTable()
 
         self.tableList.setRowCount(len(tracksInFilebaseList))
 
@@ -72,27 +96,46 @@ class mainWindow(QMainWindow):
 
             currentRow += 1
 
-    # увеличивает количество строк в табличном списке музыкальных
-    # композиций на 1.
     def incTableListRowCount(self):
+        """
+        увеличивает количество строк в табличном списке
+        музыкальных композиций на 1.
+        """
+
         self.tableList.setRowCount(self.tableList.rowCount() + 1)
 
-    # добавляет строку в табличный список музыкальных композиций.
     def appendRowToTableList(self):
-        self.incTableListRowCount()
-        lastRowInFilebase, lastRowInFilebaseIndex = filebase.getLastRowInFilebaseAndItsIndex()
-        self.setRowInTableList(lastRowInFilebaseIndex, lastRowInFilebase)
+        """
+        добавляет строку в табличный список музыкальных
+        композиций.
+        """
 
-    # добавляет файл музыкальной композиции в базу данных плеера.
-    def addToFilebase(self):
-        filesToAddPaths = easygui.fileopenbox(filetypes="*.mp3, *.flac", multiple=True)
+        self.incTableListRowCount()
+
+        lastRowInFilebase, lastRowInFilebaseIndex = \
+            filebase.getLastRowInFilebaseAndItsIndex()
+
+        self.setRowInTableList(lastRowInFilebaseIndex,
+                               lastRowInFilebase)
+
+    def addToMusicTracksTable(self):
+        """
+        добавляет трек в таблицу музыкальных композиций,
+        находящуюся в базе данных плеера.
+        """
+
+        filesToAddPaths = easygui.fileopenbox(filetypes="*.mp3, *.flac",
+                                              multiple=True)
 
         for fileToAddPath in filesToAddPaths:
             filebase.addRowToFilebase(fileToAddPath)
             self.appendRowToTableList()
 
-# запускает приложение музыкального плеера.
 def runApplication():
+    """
+    запускает приложение музыкального плеера.
+    """
+
     musicPlayerApplication = QApplication(sys.argv)
 
     window = mainWindow()

@@ -4,9 +4,16 @@ from mutagen import id3
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 
-# возвращает словарь тегов, присвоенных музыкальной композиции,
-# файл которой расположен по пути filepath.
 def getTagsDict(filepath):
+    """
+    возвращает словарь тегов, присвоенных
+    музыкальной композиции, файл которой
+    расположен по пути filepath.
+    :param filepath: путь к файлу трека.
+    :return: словарь тегов, присвоенных
+    музыкальной композиции.
+    """
+
     trackFormat = filepath[-4:]
 
     if trackFormat == ".mp3":
@@ -14,8 +21,16 @@ def getTagsDict(filepath):
     elif trackFormat == "flac":
         return FLAC(filepath)
 
-# возвращает словарь ключей словаря тегов музыкальной композиции.
 def getKeysDict(tagsDict):
+    """
+    возвращает словарь ключей словаря тегов
+    музыкальной композиции.
+    :param tagsDict: словарь тегов, присвоенных
+    музыкальной композиции.
+    :return: словарь ключей словаря тегов трека
+    keysDict.
+    """
+
     if isinstance(tagsDict, mutagen.flac.FLAC):
         titleKey = 'TITLE'
         albumKey = 'ALBUM'
@@ -45,14 +60,30 @@ def getKeysDict(tagsDict):
 
     return keysDict
 
-# возвращает информацию о музыкальной композиции по ключу из словаря
-# тегов в формате строки.
 def getInfoFromTagsDictByKey(tagsDict, key):
+    """
+    возвращает информацию о музыкальной композиции
+    по ключу словаря ключей словаря тегов.
+    :param tagsDict: словарь тегов, присвоенных
+    музыкальной композиции;
+    :param key: ключ словаря ключей словаря тегов.
+    :return: строка с информацией о треке.
+    """
+
     keysDict = getKeysDict(tagsDict)
 
     return str(tagsDict[keysDict[key]][0])
 
-# дополняет список информации о музыкальной композиции данными из тегов.
 def complementTrackInfoList(tagsDict, infoList):
+    """
+    дополняет список информации о музыкальной
+    композиции данными из тегов.
+    :param tagsDict: словарь тегов, присвоенных
+    музыкальной композиции;
+    :param infoList: список информации о музыкальной
+    композиции.
+    """
+
     for key in getKeysDict(tagsDict):
-        infoList.append(getInfoFromTagsDictByKey(tagsDict, key))
+        infoList.append(getInfoFromTagsDictByKey(tagsDict,
+                                                 key))
