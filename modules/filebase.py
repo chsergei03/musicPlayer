@@ -48,9 +48,10 @@ def executeQuery(query, queryType, varWithInfo=None):
     данных, если запрос относится к типу "noSelectQuery", в противном
     случае возвращает список строк, удовлетворяющих запросу.
     :param query: запрос к базе данных;
-    :param queryType: тип запроса к базе данных;
+    :param queryType: тип запроса к базе данных (строка);
     :param varWithInfo: переменная, хранящая дополнительную
-    информацию для запроса к базе данных (необязательный параметр).
+    информацию для запроса к базе данных (кортеж, является
+    необязательным параметром).
     :return: список 'строк', удовлетворяющих запросу; возвращается.
     если запрос относится к типу "getAllRowsBySelectQuery" или
     "getOneRowBySelectQuery" ('строка' представляет из себя кортеж
@@ -110,7 +111,7 @@ def addRowToMusicTracksTable(fileToAddPath):
     rows = executeQuery(
         """SELECT filepath FROM musicTracks WHERE filepath = ?""",
         "getAllRowsBySelectQuery",
-        fileToAddPath)
+        (fileToAddPath,))
 
     if len(rows) == 0:
         infoList = [fileToAddPath]

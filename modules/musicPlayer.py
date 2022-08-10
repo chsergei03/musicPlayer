@@ -113,7 +113,7 @@ class mainWindow(QMainWindow):
         self.incTableListRowCount()
 
         lastRowInFilebase, lastRowInFilebaseIndex = \
-            filebase.getLastRowInFilebaseAndItsIndex()
+            filebase.getLastRowOfMusicTracksTableAndItsIndex()
 
         self.setRowInTableList(lastRowInFilebaseIndex,
                                lastRowInFilebase)
@@ -128,7 +128,7 @@ class mainWindow(QMainWindow):
                                               multiple=True)
 
         for fileToAddPath in filesToAddPaths:
-            filebase.addRowToFilebase(fileToAddPath)
+            filebase.addRowToMusicTracksTable(fileToAddPath)
             self.appendRowToTableList()
 
 def runApplication():
