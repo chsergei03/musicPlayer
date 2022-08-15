@@ -1,12 +1,32 @@
+import enum
 import sys
 import easygui
 import modules.filebase as filebase
 
-from PyQt6.QtCore import Qt
+from PyQt6 import QtCore
+from PyQt6.QtCore import Qt, QEvent, QObject
+from PyQt6.QtGui import QMouseEvent
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, \
-                            QPushButton, QTableWidget, QTableWidgetItem, \
-                            QAbstractItemView
+    QPushButton, QTableWidget, QTableWidgetItem, QMenu, QWidgetAction, \
+    QAbstractItemView
+
+class geometryConstants(enum.IntEnum):
+    WINDOW_X, WINDOW_Y = 0, 0
+    WINDOW_WIDTH, WINDOW_HEIGHT = 217, 400
+
+    BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
+
+    BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
+
+    TABLELIST_X, TABLELIST_Y = 0, 60
+    TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
+    TABLELIST_NUMBERSCOLUMN_WIDTH = 10
+    TABLELIST_CELL_HEIGHT = 20
+
+class tableListConstants(enum.IntEnum):
+    TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 2
+    ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 4
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -14,34 +34,41 @@ class mainWindow(QMainWindow):
         super(mainWindow, self).__init__()
 
         # настройка параметров окна:
-        WINDOW_X, WINDOW_Y = 0, 0
-        WINDOW_WIDTH, WINDOW_HEIGHT = 400, 400
         self.setWindowTitle("music player")
-        self.setGeometry(WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.setGeometry(geometryConstants.WINDOW_X,
+                         geometryConstants.WINDOW_Y,
+                         geometryConstants.WINDOW_WIDTH,
+                         geometryConstants.WINDOW_HEIGHT)
 
         # настройка кнопок:
-        BUTTON_WIDTH, BUTTON_HEIGHT = 400, 50
-
-        BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
-        self.buttonAddToMusicTracksTable = self.getConfiguredButton(
-            BUTTON_ADDTOFILEBASE_X,
-            BUTTON_ADDTOFILEBASE_Y,
-            BUTTON_WIDTH, BUTTON_HEIGHT,
+        self.buttonAddTracks = self.getConfiguredButton(
+            geometryConstants.BUTTON_ADDTOFILEBASE_X,
+            geometryConstants.BUTTON_ADDTOFILEBASE_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
             "add to filebase")
 
-        # настройка табличного списка музыкальных композиций:
-        TABLELIST_X, TABLELIST_Y = 0, 60
-        TABLELIST_WIDTH, TABLELIST_HEIGHT = 400, 300
+        # настройка параметров списка музыкальных композиций:
         self.tableList = QTableWidget(self)
-        self.tableList.setGeometry(TABLELIST_X, TABLELIST_Y,
-                                   TABLELIST_WIDTH, TABLELIST_HEIGHT)
+        self.tableList.setGeometry(geometryConstants.TABLELIST_X,
+                                   geometryConstants.TABLELIST_Y,
+                                   geometryConstants.TABLELIST_WIDTH,
+                                   geometryConstants.TABLELIST_HEIGHT)
+
         self.tableList.setColumnCount(2)
         self.tableList.setHorizontalHeaderLabels(["title", "artist"])
         self.tableList.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.loadTracksFromMusicTracksTableToTableList()
 
+        # настройка контекстного меню табличного списка музыкальных композиций:
+        self.tableListContextMenu = QMenu(self)
+        self.tableListContextMenuActionDeleteTrack = QWidgetAction(self)
+        self.tableListContextMenuActionDeleteTrack.setText("delete")
+        self.tableListContextMenu.addAction(self.tableListContextMenuActionDeleteTrack)
+
         # настройка соединений сигналов со слотами:
-        self.buttonAddToMusicTracksTable.clicked.connect(self.addToMusicTracksTable)
+        self.buttonAddTracks.clicked.connect(self.addTracks)
+        self.tableListContextMenuActionDeleteTrack.triggered.connect(self.deleteTrack)
 
     def getConfiguredButton(self, x, y, width, height, text):
         """
@@ -74,14 +101,13 @@ class mainWindow(QMainWindow):
         музыкальных композиций, находящейся в базе данных приложения.
         """
 
-        TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 2
-        ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 4
+        self.tableList.setItem(row, tableListConstants.TITLE_INDEXINTABLELIST,
+                               QTableWidgetItem(
+                                   track[tableListConstants.TITLE_INDEXINFILEBASE]))
 
-        self.tableList.setItem(row, TITLE_INDEXINTABLELIST,
-                               QTableWidgetItem(track[TITLE_INDEXINFILEBASE]))
-
-        self.tableList.setItem(row, ARTIST_INDEXINTABLELIST,
-                               QTableWidgetItem(track[ARTIST_INDEXINFILEBASE]))
+        self.tableList.setItem(row, tableListConstants.ARTIST_INDEXINTABLELIST,
+                               QTableWidgetItem(
+                                   track[tableListConstants.ARTIST_INDEXINFILEBASE]))
 
     def loadTracksFromMusicTracksTableToTableList(self):
         """
@@ -90,12 +116,12 @@ class mainWindow(QMainWindow):
         базы данных приложения.
         """
 
-        tracksInFilebaseList = filebase.getListOfAllRowsOfMusicTracksTable()
+        listOfAllRowsOfMusicTracksTable = filebase.getListOfAllRowsOfMusicTracksTable()
 
-        self.tableList.setRowCount(len(tracksInFilebaseList))
+        self.tableList.setRowCount(len(listOfAllRowsOfMusicTracksTable))
 
         currentRow = 0
-        for track in tracksInFilebaseList:
+        for track in listOfAllRowsOfMusicTracksTable:
             self.setRowInTableList(currentRow, track)
 
             currentRow += 1
@@ -116,13 +142,13 @@ class mainWindow(QMainWindow):
 
         self.incTableListRowCount()
 
-        lastRowInFilebase, lastRowInFilebaseIndex = \
+        lastRowInMusicTracksTable, lastRowInMusicTracksTableIndex = \
             filebase.getLastRowOfMusicTracksTableAndItsIndex()
 
-        self.setRowInTableList(lastRowInFilebaseIndex,
-                               lastRowInFilebase)
+        self.setRowInTableList(lastRowInMusicTracksTableIndex,
+                               lastRowInMusicTracksTable)
 
-    def addToMusicTracksTable(self):
+    def addTracks(self):
         """
         добавляет трек в таблицу музыкальных композиций,
         находящуюся в базе данных плеера.
@@ -131,9 +157,66 @@ class mainWindow(QMainWindow):
         filesToAddPaths = easygui.fileopenbox(filetypes="*.mp3, *.flac",
                                               multiple=True)
 
-        for fileToAddPath in filesToAddPaths:
-            filebase.addRowToMusicTracksTable(fileToAddPath)
-            self.appendRowToTableList()
+        if filesToAddPaths:
+            for fileToAddPath in filesToAddPaths:
+                filebase.addRowToMusicTracksTable(fileToAddPath)
+                self.appendRowToTableList()
+
+    def contextMenuEvent(self, event):
+        """
+        выводит контекстное меню табличного списка музыкальных
+        композиций при нажатии на правую клавишу мыши; если в
+        момент клика правой клавишей мыши её курсор находился
+        на конкретной ячейке табличного списка, сохряняет в его
+        атрибуте rightClickedCell эту ячейку (ячейка является
+        объектом класса QTableWidgetItem).
+        :param event: событие, после которого контекстное
+        меню выводится на экран.
+        """
+        point = event.pos()
+
+        mousePositionX = int(point.x()) - \
+                         geometryConstants.TABLELIST_NUMBERSCOLUMN_WIDTH
+
+        mousePositionY = int(point.y()) - (geometryConstants.TABLELIST_Y +
+                                           geometryConstants.TABLELIST_CELL_HEIGHT)
+
+        rightClickedCell = self.tableList.itemAt(mousePositionX, mousePositionY)
+
+        if rightClickedCell is not None:
+            self.tableList.choosedCell = rightClickedCell
+
+        self.tableListContextMenu.exec(event.globalPos())
+
+    def deleteTrack(self):
+        """
+        удаляет трек из табличного списка музыкальных
+        композиций (композиция также удаляется из
+        таблицы треков в базе данных приложения).
+        """
+
+        listOfAllRowsOfMusicTracksTable = filebase.getListOfAllRowsOfMusicTracksTable()
+
+        currentRowIndex = self.tableList.choosedCell.row()
+
+        choosedCellRowIndex = currentRowIndex
+
+        trackToDeleteTitleAndArtistTuple = (self.tableList.item(choosedCellRowIndex,
+                                                tableListConstants.TITLE_INDEXINTABLELIST).text(),
+                                            self.tableList.item(choosedCellRowIndex,
+                                                tableListConstants.ARTIST_INDEXINTABLELIST).text())
+
+        nRewrites = self.tableList.rowCount() - choosedCellRowIndex - 1
+        if nRewrites > 0:
+            for i in range(nRewrites):
+                self.setRowInTableList(currentRowIndex,
+                                       listOfAllRowsOfMusicTracksTable[currentRowIndex + 1])
+
+                currentRowIndex += 1
+
+        self.tableList.setRowCount(self.tableList.rowCount() - 1)
+
+        filebase.deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple)
 
 def runApplication():
     """

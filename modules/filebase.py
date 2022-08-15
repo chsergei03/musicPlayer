@@ -94,7 +94,7 @@ def musicTracksTableInit():
         genre TEXT NOT NULL,
         composer TEXT NOT NULL,
         nListenings INTEGER NOT NULL);""",
-        "noSelectQuery")
+                 "noSelectQuery")
 
 def addRowToMusicTracksTable(fileToAddPath):
     """
@@ -124,8 +124,8 @@ def addRowToMusicTracksTable(fileToAddPath):
             (filepath, title, album, artist, albumArtist, 
             yearRelease, genre, composer, nListenings)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);""",
-            "noSelectQuery",
-            tuple(infoList))
+                     "noSelectQuery",
+                     tuple(infoList))
 
 def getListOfAllRowsOfMusicTracksTable():
     """
@@ -157,7 +157,22 @@ def getLastRowOfMusicTracksTableAndItsIndex():
         """SELECT * FROM musicTracks ORDER BY id DESC""",
         "getOneRowBySelectQuery")
 
-    return lastRowOfMusicTracksTable, lastRowOfMusicTracksTable[0] - 1
+    return lastRowOfMusicTracksTable, \
+           lastRowOfMusicTracksTable[0] - 1
+
+def deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple):
+    """
+    удаляет трек из таблицы музыкальных композиций,
+    находящейся в базе данных приложения.
+    :param trackTitleAndArtistTuple: кортеж с названием
+    трека и его исполнителем.
+    """
+
+    executeQuery(
+        """DELETE FROM musicTracks 
+        WHERE title = ? and artist = ?""",
+        "noSelectQuery",
+        trackToDeleteTitleAndArtistTuple)
 
 def initFilebaseIfNotExists():
     """
