@@ -174,6 +174,20 @@ def deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple):
         "noSelectQuery",
         trackToDeleteTitleAndArtistTuple)
 
+def getTrackPathFromMusicTracksTable(trackTitleAndArtistTuple):
+    """
+    возвращает путь к файлу музыкальной композиции из таблицы
+    треков, находящейся в базе данных приложения, по кортежу,
+    в котором содержится название песни и имя исполнителя.
+    :param trackTitleAndArtistTuple: кортеж с названием
+    трека и его исполнителем.
+    :return: строка, в которой содержится путь к файлу трека.
+    """
+    return executeQuery("""SELECT * FROM musicTracks 
+        WHERE title = ? and artist = ?""",
+                        "getOneRowBySelectQuery",
+                        trackTitleAndArtistTuple)[1]
+
 def initFilebaseIfNotExists():
     """
     инициализирует базу данных приложения, создавая в ней

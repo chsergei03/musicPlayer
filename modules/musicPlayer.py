@@ -1,7 +1,10 @@
-import enum
-import sys
-import easygui
 import modules.filebase as filebase
+
+import sys
+import enum
+
+import easygui
+import pygame
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QEvent, QObject
@@ -13,11 +16,12 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, \
 
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
-    WINDOW_WIDTH, WINDOW_HEIGHT = 217, 400
+    WINDOW_WIDTH, WINDOW_HEIGHT = 450, 400
 
     BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
 
     BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
+    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 227, 0
 
     TABLELIST_X, TABLELIST_Y = 0, 60
     TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
@@ -48,6 +52,13 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_HEIGHT,
             "add to filebase")
 
+        self.buttonPauseTrack = self.getConfiguredButton(
+            geometryConstants.BUTTON_PAUSETRACK_X,
+            geometryConstants.BUTTON_PAUSETRACK_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
+            "pause track")
+
         # настройка параметров списка музыкальных композиций:
         self.tableList = QTableWidget(self)
         self.tableList.setGeometry(geometryConstants.TABLELIST_X,
@@ -66,9 +77,16 @@ class mainWindow(QMainWindow):
         self.tableListContextMenuActionDeleteTrack.setText("delete")
         self.tableListContextMenu.addAction(self.tableListContextMenuActionDeleteTrack)
 
+        # настройка плеера:
+        pygame.init()
+        pygame.mixer.init()
+        self.playedTrackPosition = 0
+
         # настройка соединений сигналов со слотами:
         self.buttonAddTracks.clicked.connect(self.addTracks)
+        self.buttonPauseTrack.clicked.connect(self.pauseTrack)
         self.tableListContextMenuActionDeleteTrack.triggered.connect(self.deleteTrack)
+        self.tableList.itemDoubleClicked.connect(self.playDoubleClickedTrack)
 
     def getConfiguredButton(self, x, y, width, height, text):
         """
@@ -188,6 +206,19 @@ class mainWindow(QMainWindow):
 
         self.tableListContextMenu.exec(event.globalPos())
 
+    def getTrackTitleAndArtistTupleFromRowIndex(self, rowIndex):
+        """
+        возвращает кортеж с названием трека и его исполнителем
+        по индексу строки в табличном списке музыкальных композиций.
+        :param rowIndex: индексу строки в табличном списке музыкальных
+        композиций.
+        :return: кортеж с названием трека и его исполнителем.
+        """
+        return (self.tableList.item(rowIndex,
+                                    tableListConstants.TITLE_INDEXINTABLELIST).text(),
+                self.tableList.item(rowIndex,
+                                    tableListConstants.ARTIST_INDEXINTABLELIST).text())
+
     def deleteTrack(self):
         """
         удаляет трек из табличного списка музыкальных
@@ -201,10 +232,8 @@ class mainWindow(QMainWindow):
 
         choosedCellRowIndex = currentRowIndex
 
-        trackToDeleteTitleAndArtistTuple = (self.tableList.item(choosedCellRowIndex,
-                                                tableListConstants.TITLE_INDEXINTABLELIST).text(),
-                                            self.tableList.item(choosedCellRowIndex,
-                                                tableListConstants.ARTIST_INDEXINTABLELIST).text())
+        trackToDeleteTitleAndArtistTuple = self.getTrackTitleAndArtistTupleFromRowIndex(
+            choosedCellRowIndex)
 
         nRewrites = self.tableList.rowCount() - choosedCellRowIndex - 1
         if nRewrites > 0:
@@ -217,6 +246,41 @@ class mainWindow(QMainWindow):
         self.tableList.setRowCount(self.tableList.rowCount() - 1)
 
         filebase.deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple)
+
+    def playDoubleClickedTrack(self, item):
+        """
+        запускает проигрывание трека по двойному
+        клику на связанную с ним ячейку в табличном
+        списке музыкальных композиций; если двойной клик
+        произошел по треку, который поставлен на паузу,
+        возобновляет его проигрывание с момента паузы.
+        :param item: ячейка табличного списка музыкальных
+        композиций, связанная с конкретным треком, по которой
+        пользователь кликнул два раза подряд (объект класса
+        QTableWidgetItem).
+        """
+
+        trackTitleAndArtistTuple = self.getTrackTitleAndArtistTupleFromRowIndex(
+            item.row())
+
+        if pygame.mixer.music.get_pos() == -1 or \
+                item != self.playingTrack:
+            pygame.mixer.music.load(
+                filebase.getTrackPathFromMusicTracksTable(
+                    trackTitleAndArtistTuple))
+
+            pygame.mixer.music.play()
+        else:
+            pygame.mixer.music.unpause()
+
+        self.playingTrack = item
+
+    def pauseTrack(self):
+        """
+        ставит проигрываемый трек на паузу.
+        """
+
+        pygame.mixer.music.pause()
 
 def runApplication():
     """
