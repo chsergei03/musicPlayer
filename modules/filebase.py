@@ -1,9 +1,15 @@
+import enum
 import sqlite3
 import os.path
 
 import modules.tagsParsing as tagsParsing
 
 FILEBASE_PATH = os.path.abspath("data/filebase/filebase.db")
+
+class executeQueryConstants(enum.IntEnum):
+    NO_SELECT_QUERY = 0
+    GET_ONE_ROW_BY_SELECT_QUERY = 1
+    GET_ALL_ROWS_BY_SELECT_QUERY = 2
 
 def initConnectionAndCursor(filebasePath):
     """
@@ -42,35 +48,37 @@ def sustainChanges(connection, cursor):
     connection.commit()
     closeConnectionAndCursor(connection, cursor)
 
-def executeQuery(query, queryType, varWithInfo=None):
+def executeQuery(query, queryType, tupleWithInfo=None):
     """
-    выполняет запрос к базе данных, закрепляет изменения в базе
-    данных, если запрос относится к типу "noSelectQuery", в противном
-    случае возвращает список строк, удовлетворяющих запросу.
+    выполняет запрос к базе данных, закрепляет изменения
+    в базе данных, если запрос относится к типу NO_SELECT_QUERY,
+    в противном случае возвращает список строк, удовлетворяющих
+    запросу.
     :param query: запрос к базе данных;
-    :param queryType: тип запроса к базе данных (строка);
-    :param varWithInfo: переменная, хранящая дополнительную
-    информацию для запроса к базе данных (кортеж, является
-    необязательным параметром).
-    :return: список 'строк', удовлетворяющих запросу; возвращается.
-    если запрос относится к типу "getAllRowsBySelectQuery" или
-    "getOneRowBySelectQuery" ('строка' представляет из себя кортеж
-    с данными из контректной строки таблицы).
+    :param queryType: тип запроса к базе данных (целочисленная
+    константа из перечисления executeQueryConstants);
+    :param tupleWithInfo: кортеж, хранящий в себе информацию о
+    содержимом таблицы, необходимую информацию для запроса к
+    базе данных (кортеж, является необязательным параметром).
+    :return: список 'строк' rowsList, удовлетворяющих запросу;
+    возвращается, если запрос относится к типу GET_ONE_ROW_BY_SELECT_QUERY
+    или GET_ALL_ROWS_BY_SELECT_QUERY ('строка' представляет
+    из себя кортеж с данными из контректной строки таблицы).
     """
 
     connection, cursor = initConnectionAndCursor(FILEBASE_PATH)
 
-    if isinstance(varWithInfo, type(None)):
+    if tupleWithInfo is None:
         cursor.execute(query)
     else:
-        cursor.execute(query, varWithInfo)
+        cursor.execute(query, tupleWithInfo)
 
-    if queryType == "noSelectQuery":
+    if queryType == executeQueryConstants.NO_SELECT_QUERY:
         sustainChanges(connection, cursor)
     else:
-        if queryType == "getOneRowBySelectQuery":
+        if queryType == executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY:
             rowsList = cursor.fetchone()
-        elif queryType == "getAllRowsBySelectQuery":
+        elif queryType == executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY:
             rowsList = cursor.fetchall()
 
         closeConnectionAndCursor(connection, cursor)
@@ -83,7 +91,8 @@ def musicTracksTableInit():
     в базе данных приложения.
     """
 
-    executeQuery("""CREATE TABLE musicTracks(
+    executeQuery(
+        """CREATE TABLE musicTracks(
         id INTEGER PRIMARY KEY NOT NULL,
         filepath TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -94,7 +103,7 @@ def musicTracksTableInit():
         genre TEXT NOT NULL,
         composer TEXT NOT NULL,
         nListenings INTEGER NOT NULL);""",
-                 "noSelectQuery")
+        executeQueryConstants.NO_SELECT_QUERY)
 
 def addRowToMusicTracksTable(fileToAddPath):
     """
@@ -108,85 +117,100 @@ def addRowToMusicTracksTable(fileToAddPath):
     :param fileToAddPath: путь к файлу добавляемого трека.
     """
 
-    rows = executeQuery(
-        """SELECT filepath FROM musicTracks WHERE filepath = ?""",
-        "getAllRowsBySelectQuery",
+    rowWithFileToAddPath = executeQuery(
+        """SELECT * 
+        FROM musicTracks 
+        WHERE filepath = ?""",
+        executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY,
         (fileToAddPath,))
 
-    if len(rows) == 0:
+    if rowWithFileToAddPath is None:
         infoList = [fileToAddPath]
         tagsParsing.complementTrackInfoList(tagsParsing.getTagsDict(fileToAddPath),
                                             infoList)
         nListenings = 0
         infoList.append(nListenings)
 
-        executeQuery("""INSERT INTO musicTracks 
+        executeQuery(
+            """INSERT INTO musicTracks 
             (filepath, title, album, artist, albumArtist, 
             yearRelease, genre, composer, nListenings)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);""",
-                     "noSelectQuery",
-                     tuple(infoList))
+            executeQueryConstants.NO_SELECT_QUERY,
+            tuple(infoList))
 
-def getListOfAllRowsOfMusicTracksTable():
+def getListOfAllRowsOfMusicTracksTableForTableList():
     """
     возвращает список всех строк таблицы музыкальных композиций,
     находящейся в базе данных приложения (строка представляет из
-    себя кортеж данных).
+    себя кортеж данных), для формирования табличного списка
+    музыкальных композиций.
     :return: список всех 'строк' таблицы музыкальных композиций
     listOfAllRowsOfMusicTracksTable ('строка' представляет
     из себя кортеж с данными из контректной строки таблицы).
     """
 
     listOfAllRowsOfMusicTracksTable = executeQuery(
-        """SELECT * FROM musicTracks""",
-        "getAllRowsBySelectQuery")
+        """SELECT title, artist 
+        FROM musicTracks""",
+        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY)
 
     return listOfAllRowsOfMusicTracksTable
 
-def getLastRowOfMusicTracksTableAndItsIndex():
+def getLastRowOfMusicTracksTable():
     """
-    # возвращает последнюю строку таблицы музыкальных композиций,
-    находящейся в базе данных приложения (строка представляет из
-    себя кортеж данных), а также индекс этой строки.
-    :return: последняя 'строка' таблицы музыкальных композиций
-    lastRowOfMusicTracksTable ('строка' представляет из себя кортеж
-    с данными из контректной строки таблицы).
+    # возвращает последнюю строку таблицы музыкальных
+    композиций, находящейся в базе данных приложения
+    (строка представляет из себя кортеж данных).
+    :return: последняя 'строка' таблицы музыкальных
+    композиций lastRowOfMusicTracksTable ('строка'
+    представляет из себя кортеж с названием трека,
+    добавленного последним в таблицу, и его исполнителем).
     """
 
     lastRowOfMusicTracksTable = executeQuery(
-        """SELECT * FROM musicTracks ORDER BY id DESC""",
-        "getOneRowBySelectQuery")
+        """SELECT title, artist 
+        FROM musicTracks 
+        ORDER BY id DESC""",
+        executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY)
 
-    return lastRowOfMusicTracksTable, \
-           lastRowOfMusicTracksTable[0] - 1
+    return lastRowOfMusicTracksTable
 
-def deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple):
+def deleteRowFromMusicTracksTable(trackInfoTuple):
     """
     удаляет трек из таблицы музыкальных композиций,
     находящейся в базе данных приложения.
-    :param trackTitleAndArtistTuple: кортеж с названием
-    трека и его исполнителем.
+    :param trackInfoTuple: кортеж с названием трека
+    и его исполнителем.
     """
 
     executeQuery(
-        """DELETE FROM musicTracks 
+        """DELETE 
+        FROM musicTracks 
         WHERE title = ? and artist = ?""",
-        "noSelectQuery",
-        trackToDeleteTitleAndArtistTuple)
+        executeQueryConstants.NO_SELECT_QUERY,
+        trackInfoTuple)
 
-def getTrackPathFromMusicTracksTable(trackTitleAndArtistTuple):
+def getTrackPathFromMusicTracksTable(trackInfoTuple):
     """
-    возвращает путь к файлу музыкальной композиции из таблицы
-    треков, находящейся в базе данных приложения, по кортежу,
-    в котором содержится название песни и имя исполнителя.
-    :param trackTitleAndArtistTuple: кортеж с названием
-    трека и его исполнителем.
-    :return: строка, в которой содержится путь к файлу трека.
+    возвращает путь к файлу музыкальной композиции из
+    таблицы треков, находящейся в базе данных приложения,
+    по кортежу, в котором содержится название песни и
+    имя исполнителя.
+    :param trackInfoTuple: кортеж с названием трека и
+    его исполнителем.
+    :return: строка trackPath, в которой содержится путь
+    к файлу трека.
     """
-    return executeQuery("""SELECT * FROM musicTracks 
+
+    trackPath = executeQuery(
+        """SELECT filepath 
+        FROM musicTracks
         WHERE title = ? and artist = ?""",
-                        "getOneRowBySelectQuery",
-                        trackTitleAndArtistTuple)[1]
+        executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY,
+        trackInfoTuple)[0]
+
+    return trackPath
 
 def initFilebaseIfNotExists():
     """

@@ -2,16 +2,18 @@ import modules.filebase as filebase
 
 import sys
 import enum
-
 import easygui
+
+from os import environ
+
+environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QEvent, QObject
 from PyQt6.QtGui import QMouseEvent
-
-from PyQt6.QtWidgets import QApplication, QMainWindow, \
-    QPushButton, QTableWidget, QTableWidgetItem, QMenu, QWidgetAction, \
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, \
+    QTableWidget, QTableWidgetItem, QMenu, QWidgetAction, \
     QAbstractItemView
 
 class geometryConstants(enum.IntEnum):
@@ -29,8 +31,16 @@ class geometryConstants(enum.IntEnum):
     TABLELIST_CELL_HEIGHT = 20
 
 class tableListConstants(enum.IntEnum):
-    TITLE_INDEXINTABLELIST, TITLE_INDEXINFILEBASE = 0, 2
-    ARTIST_INDEXINTABLELIST, ARTIST_INDEXINFILEBASE = 1, 4
+    TITLE_INDEX = 0
+    ARTIST_INDEX = 1
+    N_COLUMNS = 2
+
+class musicPlayerConstants(enum.IntEnum):
+    TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK = -1
+
+class updateTableListRowCountConstants(enum.IntEnum):
+    APPEND_ROW = 0
+    REMOVE_ROW = 1
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -66,7 +76,7 @@ class mainWindow(QMainWindow):
                                    geometryConstants.TABLELIST_WIDTH,
                                    geometryConstants.TABLELIST_HEIGHT)
 
-        self.tableList.setColumnCount(2)
+        self.tableList.setColumnCount(tableListConstants.N_COLUMNS)
         self.tableList.setHorizontalHeaderLabels(["title", "artist"])
         self.tableList.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.loadTracksFromMusicTracksTableToTableList()
@@ -75,17 +85,20 @@ class mainWindow(QMainWindow):
         self.tableListContextMenu = QMenu(self)
         self.tableListContextMenuActionDeleteTrack = QWidgetAction(self)
         self.tableListContextMenuActionDeleteTrack.setText("delete")
-        self.tableListContextMenu.addAction(self.tableListContextMenuActionDeleteTrack)
+        self.tableListContextMenu.addAction(
+            self.tableListContextMenuActionDeleteTrack)
 
         # настройка плеера:
         pygame.init()
         pygame.mixer.init()
         self.playedTrackPosition = 0
+        self.playingTrack = None
 
         # настройка соединений сигналов со слотами:
         self.buttonAddTracks.clicked.connect(self.addTracks)
         self.buttonPauseTrack.clicked.connect(self.pauseTrack)
-        self.tableListContextMenuActionDeleteTrack.triggered.connect(self.deleteTrack)
+        self.tableListContextMenuActionDeleteTrack.triggered.connect(
+            self.deleteTrack)
         self.tableList.itemDoubleClicked.connect(self.playDoubleClickedTrack)
 
     def getConfiguredButton(self, x, y, width, height, text):
@@ -109,23 +122,25 @@ class mainWindow(QMainWindow):
 
         return button
 
-    def setRowInTableList(self, row, track):
+    def setRowInTableList(self, rowIndex, trackInfoTuple):
         """
-        заполняет строку табличного списка музыкальных композиций
-        информацией о треке.
-        :param row: индекс строки табличного списка музыкальных композиций,
-        которая будет заполнена информацией о треке;
-        :param track: кортеж с данными из контректной строки таблицы
-        музыкальных композиций, находящейся в базе данных приложения.
+        заполняет строку табличного списка музыкальных
+        композиций информацией о треке.
+        :param rowIndex: индекс строки табличного списка
+        музыкальных композиций, которая будет заполнена
+        информацией о треке;
+        :param trackInfoTuple: кортеж с данными из контректной
+        строки таблицы музыкальных композиций, находящейся в
+        базе данных приложения.
         """
 
-        self.tableList.setItem(row, tableListConstants.TITLE_INDEXINTABLELIST,
+        self.tableList.setItem(rowIndex, tableListConstants.TITLE_INDEX,
                                QTableWidgetItem(
-                                   track[tableListConstants.TITLE_INDEXINFILEBASE]))
+                                   trackInfoTuple[tableListConstants.TITLE_INDEX]))
 
-        self.tableList.setItem(row, tableListConstants.ARTIST_INDEXINTABLELIST,
+        self.tableList.setItem(rowIndex, tableListConstants.ARTIST_INDEX,
                                QTableWidgetItem(
-                                   track[tableListConstants.ARTIST_INDEXINFILEBASE]))
+                                   trackInfoTuple[tableListConstants.ARTIST_INDEX]))
 
     def loadTracksFromMusicTracksTableToTableList(self):
         """
@@ -134,7 +149,8 @@ class mainWindow(QMainWindow):
         базы данных приложения.
         """
 
-        listOfAllRowsOfMusicTracksTable = filebase.getListOfAllRowsOfMusicTracksTable()
+        listOfAllRowsOfMusicTracksTable = \
+            filebase.getListOfAllRowsOfMusicTracksTableForTableList()
 
         self.tableList.setRowCount(len(listOfAllRowsOfMusicTracksTable))
 
@@ -144,41 +160,54 @@ class mainWindow(QMainWindow):
 
             currentRow += 1
 
-    def incTableListRowCount(self):
+    def updateTableListRowCount(self, mode):
         """
-        увеличивает количество строк в табличном списке
-        музыкальных композиций на 1.
+        обновляет количество строк в табличном списке
+        музыкальных композиций в зависимости от режима
+        mode; если это режим APPEND_ROW, увеличивает
+        количество строк в списке на 1, если же это режим
+        REMOVE_ROW - уменьшает на 1.
+        :param mode: режим обновления табличного списка
+        музыкальных композиций (целочисленная константа
+        из перечисления updateTableListRowCountConstants).
         """
+        newRowCount = self.tableList.rowCount() + \
+                      (mode == updateTableListRowCountConstants.APPEND_ROW) - \
+                      (mode == updateTableListRowCountConstants.REMOVE_ROW)
 
-        self.tableList.setRowCount(self.tableList.rowCount() + 1)
+        self.tableList.setRowCount(newRowCount)
 
-    def appendRowToTableList(self):
+    def addTrackToTableList(self):
         """
-        добавляет строку в табличный список музыкальных
+        добавляет трек в табличный список музыкальных
         композиций.
         """
 
-        self.incTableListRowCount()
+        trackToAppendRowIndex = self.tableList.rowCount()
 
-        lastRowInMusicTracksTable, lastRowInMusicTracksTableIndex = \
-            filebase.getLastRowOfMusicTracksTableAndItsIndex()
+        self.updateTableListRowCount(updateTableListRowCountConstants.APPEND_ROW)
 
-        self.setRowInTableList(lastRowInMusicTracksTableIndex,
-                               lastRowInMusicTracksTable)
+        lastAddedToMusicTracksTableTrackInfoTuple = \
+            filebase.getLastRowOfMusicTracksTable()
+
+        self.setRowInTableList(
+            trackToAppendRowIndex,
+            lastAddedToMusicTracksTableTrackInfoTuple)
 
     def addTracks(self):
         """
-        добавляет трек в таблицу музыкальных композиций,
-        находящуюся в базе данных плеера.
+        добавляет трек / треки в таблицу музыкальных
+        композиций, находящуюся в базе данных плеера.
         """
 
-        filesToAddPaths = easygui.fileopenbox(filetypes="*.mp3, *.flac",
-                                              multiple=True)
+        filesToAddPaths = easygui.fileopenbox(
+            filetypes="*.mp3, *.flac",
+            multiple=True)
 
         if filesToAddPaths:
             for fileToAddPath in filesToAddPaths:
                 filebase.addRowToMusicTracksTable(fileToAddPath)
-                self.appendRowToTableList()
+                self.addTrackToTableList()
 
     def contextMenuEvent(self, event):
         """
@@ -206,18 +235,22 @@ class mainWindow(QMainWindow):
 
         self.tableListContextMenu.exec(event.globalPos())
 
-    def getTrackTitleAndArtistTupleFromRowIndex(self, rowIndex):
+    def getTrackInfoTupleByRowIndex(self, rowIndex):
         """
-        возвращает кортеж с названием трека и его исполнителем
-        по индексу строки в табличном списке музыкальных композиций.
-        :param rowIndex: индексу строки в табличном списке музыкальных
-        композиций.
-        :return: кортеж с названием трека и его исполнителем.
+        возвращает кортеж с названием трека и его
+        исполнителем по индексу строки в табличном
+        списке музыкальных композиций.
+        :param rowIndex: индексу строки в табличном
+        списке музыкальных композиций.
+        :return: кортеж trackInfoTuple с названием
+        трека и его исполнителем.
         """
-        return (self.tableList.item(rowIndex,
-                                    tableListConstants.TITLE_INDEXINTABLELIST).text(),
-                self.tableList.item(rowIndex,
-                                    tableListConstants.ARTIST_INDEXINTABLELIST).text())
+        trackInfoTuple = (self.tableList.item(rowIndex,
+                                              tableListConstants.TITLE_INDEX).text(),
+                          self.tableList.item(rowIndex,
+                                              tableListConstants.ARTIST_INDEX).text())
+
+        return trackInfoTuple
 
     def deleteTrack(self):
         """
@@ -226,48 +259,50 @@ class mainWindow(QMainWindow):
         таблицы треков в базе данных приложения).
         """
 
-        listOfAllRowsOfMusicTracksTable = filebase.getListOfAllRowsOfMusicTracksTable()
+        listOfAllRowsOfMusicTracksTable = \
+            filebase.getListOfAllRowsOfMusicTracksTableForTableList()
 
         currentRowIndex = self.tableList.choosedCell.row()
-
         choosedCellRowIndex = currentRowIndex
 
-        trackToDeleteTitleAndArtistTuple = self.getTrackTitleAndArtistTupleFromRowIndex(
+        trackInfoTuple = self.getTrackInfoTupleByRowIndex(
             choosedCellRowIndex)
 
         nRewrites = self.tableList.rowCount() - choosedCellRowIndex - 1
         if nRewrites > 0:
             for i in range(nRewrites):
-                self.setRowInTableList(currentRowIndex,
-                                       listOfAllRowsOfMusicTracksTable[currentRowIndex + 1])
+                self.setRowInTableList(
+                    currentRowIndex,
+                    listOfAllRowsOfMusicTracksTable[currentRowIndex + 1])
 
                 currentRowIndex += 1
 
-        self.tableList.setRowCount(self.tableList.rowCount() - 1)
-
-        filebase.deleteTrackFromMusicTracksTable(trackToDeleteTitleAndArtistTuple)
+        self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
+        filebase.deleteRowFromMusicTracksTable(trackInfoTuple)
 
     def playDoubleClickedTrack(self, item):
         """
         запускает проигрывание трека по двойному
         клику на связанную с ним ячейку в табличном
-        списке музыкальных композиций; если двойной клик
-        произошел по треку, который поставлен на паузу,
-        возобновляет его проигрывание с момента паузы.
+        списке музыкальных композиций; если двойной
+        клик произошел по треку, который поставлен
+        на паузу, возобновляет его проигрывание с
+        момента паузы.
         :param item: ячейка табличного списка музыкальных
-        композиций, связанная с конкретным треком, по которой
-        пользователь кликнул два раза подряд (объект класса
-        QTableWidgetItem).
+        композиций, связанная с конкретным треком,
+        по которой пользователь кликнул два раза
+        подряд (объект класса QTableWidgetItem).
         """
 
-        trackTitleAndArtistTuple = self.getTrackTitleAndArtistTupleFromRowIndex(
+        trackInfoTuple = self.getTrackInfoTupleByRowIndex(
             item.row())
 
-        if pygame.mixer.music.get_pos() == -1 or \
-                item != self.playingTrack:
+        if (pygame.mixer.music.get_pos() ==
+            musicPlayerConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK) or \
+                (item != self.playingTrack):
             pygame.mixer.music.load(
                 filebase.getTrackPathFromMusicTracksTable(
-                    trackTitleAndArtistTuple))
+                    trackInfoTuple))
 
             pygame.mixer.music.play()
         else:
@@ -275,7 +310,8 @@ class mainWindow(QMainWindow):
 
         self.playingTrack = item
 
-    def pauseTrack(self):
+    @staticmethod
+    def pauseTrack():
         """
         ставит проигрываемый трек на паузу.
         """
