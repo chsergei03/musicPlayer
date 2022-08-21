@@ -157,6 +157,23 @@ def getListOfAllRowsOfMusicTracksTableForTableList():
 
     return listOfAllRowsOfMusicTracksTable
 
+def getListOfAllAlbumArtistsFromMusicTracksTable():
+    """
+    возвращает список всех исполнителей альбомов из
+    таблицы музыкальных композиций, находящейся в
+    базе данных приложения, без повторений.
+    :return: список всех исполнителей альбомов из
+    таблицы музыкальных композиций, находящейся в
+    базе данных приложения, listOfAllAlbumArtists.
+    """
+
+    listOfAllAlbumArtists = executeQuery(
+        """SELECT DISTINCT albumArtist 
+        FROM musicTracks""",
+        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY)
+
+    return listOfAllAlbumArtists
+
 def getLastRowOfMusicTracksTable():
     """
     # возвращает последнюю строку таблицы музыкальных

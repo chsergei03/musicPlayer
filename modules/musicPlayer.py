@@ -12,9 +12,9 @@ import pygame
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QEvent, QObject
 from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, \
-    QTableWidget, QTableWidgetItem, QMenu, QWidgetAction, \
-    QAbstractItemView
+from PyQt6.QtWidgets import QApplication, QMainWindow, \
+    QPushButton, QTableWidget, QTableWidgetItem, QListWidget, QListWidgetItem, \
+    QMenu, QWidgetAction, QAbstractItemView
 
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
@@ -29,6 +29,9 @@ class geometryConstants(enum.IntEnum):
     TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
     TABLELIST_NUMBERSCOLUMN_WIDTH = 10
     TABLELIST_CELL_HEIGHT = 20
+
+    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 227, 60
+    ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 300
 
 class tableListConstants(enum.IntEnum):
     TITLE_INDEX = 0
@@ -69,12 +72,13 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_HEIGHT,
             "pause track")
 
-        # настройка параметров списка музыкальных композиций:
+        # настройка параметров табличного списка музыкальных композиций:
         self.tableList = QTableWidget(self)
-        self.tableList.setGeometry(geometryConstants.TABLELIST_X,
-                                   geometryConstants.TABLELIST_Y,
-                                   geometryConstants.TABLELIST_WIDTH,
-                                   geometryConstants.TABLELIST_HEIGHT)
+        self.tableList.setGeometry(
+            geometryConstants.TABLELIST_X,
+            geometryConstants.TABLELIST_Y,
+            geometryConstants.TABLELIST_WIDTH,
+            geometryConstants.TABLELIST_HEIGHT)
 
         self.tableList.setColumnCount(tableListConstants.N_COLUMNS)
         self.tableList.setHorizontalHeaderLabels(["title", "artist"])
@@ -87,6 +91,17 @@ class mainWindow(QMainWindow):
         self.tableListContextMenuActionDeleteTrack.setText("delete")
         self.tableListContextMenu.addAction(
             self.tableListContextMenuActionDeleteTrack)
+
+        # настройка списка исполнителей альбомов:
+        self.albumArtistsList = QListWidget(self)
+        self.albumArtistsList.setGeometry(
+            geometryConstants.ALBUMARTISTSLIST_X,
+            geometryConstants.ALBUMARTISTSLIST_Y,
+            geometryConstants.ALBUMARTISTSLIST_WIDTH,
+            geometryConstants.ALBUMARTISTSLIST_HEIGHT)
+
+        self.loadAlbumArtistsFromMusicTracksTableToAlbumArtistsList()
+        self.albumArtistsList.sortItems(QtCore.Qt.SortOrder.AscendingOrder)
 
         # настройка плеера:
         pygame.init()
@@ -159,6 +174,34 @@ class mainWindow(QMainWindow):
             self.setRowInTableList(currentRow, track)
 
             currentRow += 1
+
+    @staticmethod
+    def setItemsOfListWidget(listWidget, itemsNamesList):
+        """
+        заполняет список listWidget элементами из списка
+        listWithItemsInfo.
+        :param listWidget: ui-список (объект класса QListWidget).
+        :param listWithItemsNames: список со строками, хранящими в себе
+        названия элементов ui-списка.
+        """
+
+        for itemName in itemsNamesList:
+            item = QListWidgetItem()
+            item.setText(*itemName)
+
+            listWidget.addItem(item)
+
+    def loadAlbumArtistsFromMusicTracksTableToAlbumArtistsList(self):
+        """
+        загружает в список исполнителей альбома музыкантов из таблицы
+        музыкальных композиций, находящейся в базы данных приложения.
+        """
+
+        listOfAllAlbumArtists = \
+            filebase.getListOfAllAlbumArtistsFromMusicTracksTable()
+
+        self.setItemsOfListWidget(self.albumArtistsList,
+                                  listOfAllAlbumArtists)
 
     def updateTableListRowCount(self, mode):
         """
