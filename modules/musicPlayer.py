@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, \
 
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
-    WINDOW_WIDTH, WINDOW_HEIGHT = 450, 400
+    WINDOW_WIDTH, WINDOW_HEIGHT = 681, 400
 
     BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
 
@@ -32,6 +32,9 @@ class geometryConstants(enum.IntEnum):
 
     ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 227, 60
     ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 300
+
+    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 454, 60
+    ALBUMSOFARTISTLIST_WIDTH, ALBUMSOFARTISTLIST_HEIGHT = 217, 300
 
 class tableListConstants(enum.IntEnum):
     TITLE_INDEX = 0
@@ -58,14 +61,16 @@ class mainWindow(QMainWindow):
                          geometryConstants.WINDOW_HEIGHT)
 
         # настройка кнопок:
-        self.buttonAddTracks = self.getConfiguredButton(
+        self.buttonAddTracks = self.getConfiguredWidget(
+            QPushButton(self),
             geometryConstants.BUTTON_ADDTOFILEBASE_X,
             geometryConstants.BUTTON_ADDTOFILEBASE_Y,
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             "add to filebase")
 
-        self.buttonPauseTrack = self.getConfiguredButton(
+        self.buttonPauseTrack = self.getConfiguredWidget(
+            QPushButton(self),
             geometryConstants.BUTTON_PAUSETRACK_X,
             geometryConstants.BUTTON_PAUSETRACK_Y,
             geometryConstants.BUTTON_WIDTH,
@@ -73,8 +78,8 @@ class mainWindow(QMainWindow):
             "pause track")
 
         # настройка параметров табличного списка музыкальных композиций:
-        self.tableList = QTableWidget(self)
-        self.tableList.setGeometry(
+        self.tableList = self.getConfiguredWidget(
+            QTableWidget(self),
             geometryConstants.TABLELIST_X,
             geometryConstants.TABLELIST_Y,
             geometryConstants.TABLELIST_WIDTH,
@@ -93,8 +98,8 @@ class mainWindow(QMainWindow):
             self.tableListContextMenuActionDeleteTrack)
 
         # настройка списка исполнителей альбомов:
-        self.albumArtistsList = QListWidget(self)
-        self.albumArtistsList.setGeometry(
+        self.albumArtistsList = self.getConfiguredWidget(
+            QListWidget(self),
             geometryConstants.ALBUMARTISTSLIST_X,
             geometryConstants.ALBUMARTISTSLIST_Y,
             geometryConstants.ALBUMARTISTSLIST_WIDTH,
@@ -102,6 +107,14 @@ class mainWindow(QMainWindow):
 
         self.loadAlbumArtistsFromMusicTracksTableToAlbumArtistsList()
         self.albumArtistsList.sortItems(QtCore.Qt.SortOrder.AscendingOrder)
+
+        # настройка списка альбомов исполнителя:
+        self.albumsOfArtistList = self.getConfiguredWidget(
+            QListWidget(self),
+            geometryConstants.ALBUMSOFARTISTLIST_X,
+            geometryConstants.ALBUMSOFARTISTLIST_Y,
+            geometryConstants.ALBUMSOFARTISTLIST_WIDTH,
+            geometryConstants.ALBUMSOFARTISTLIST_HEIGHT)
 
         # настройка плеера:
         pygame.init()
@@ -112,30 +125,39 @@ class mainWindow(QMainWindow):
         # настройка соединений сигналов со слотами:
         self.buttonAddTracks.clicked.connect(self.addTracks)
         self.buttonPauseTrack.clicked.connect(self.pauseTrack)
+
         self.tableListContextMenuActionDeleteTrack.triggered.connect(
             self.deleteTrack)
+
         self.tableList.itemDoubleClicked.connect(self.playDoubleClickedTrack)
 
-    def getConfiguredButton(self, x, y, width, height, text):
+    @staticmethod
+    def getConfiguredWidget(widget, x, y, width, height, text=None):
         """
-        возвращает настроенную кнопку.
-        :param x: положение кнопки по горизонтали относительно
+        возвращает настроенный элемент интерфейса.
+        :param widget: инструкция объявления объекта
+        класса-наследника класса QWidget
+        :param x: положение элемента интерфейса по горизонтали
+        относительно левого верхнего угла (показывает, на сколько
+        пунктов элемент интерфейса расположен правее левого верхнего
+        угла);
+        :param y: положение элемента интерфейса по вертикали относительно
         левого верхнего угла (показывает, на сколько пунктов
-        кнопка расположена правее левого верхнего угла);
-        :param y: положение кнопки по вертикали относительно
-        левого верхнего угла (показывает, на сколько пунктов
-        кнопка расположена ниже левого верхнего угла);
-        :param width: ширина кнопки;
-        :param height: высота кнопки;
-        :param text: текст на кнопке.
-        :return: кнопка button (объект класса QPushButton).
+        элемент интерфейса расположен ниже левого верхнего угла);
+        :param width: ширина элемента интерфейса;
+        :param height: высота элемента интерфейса;
+        :param text: подпись на элементе интерфейса (необязательный
+        параметр)
+        :return: настроенный элемент интерфейса (объект класса-наследника
+        класса QWidget).
         """
 
-        button = QPushButton(self)
-        button.setGeometry(x, y, width, height)
-        button.setText(text)
+        widget.setGeometry(x, y, width, height)
 
-        return button
+        if text is not None:
+            widget.setText(text)
+
+        return widget
 
     def setRowInTableList(self, rowIndex, trackInfoTuple):
         """
