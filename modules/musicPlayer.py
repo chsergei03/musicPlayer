@@ -77,7 +77,7 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_HEIGHT,
             "pause track")
 
-        # настройка параметров табличного списка музыкальных композиций:
+        # настройка параметров табличного UI-списка музыкальных композиций:
         self.tableList = self.getConfiguredWidget(
             QTableWidget(self),
             geometryConstants.TABLELIST_X,
@@ -90,14 +90,14 @@ class mainWindow(QMainWindow):
         self.tableList.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.loadTracksFromMusicTracksTableToTableList()
 
-        # настройка контекстного меню табличного списка музыкальных композиций:
+        # настройка контекстного меню табличного UI-списка музыкальных композиций:
         self.tableListContextMenu = QMenu(self)
         self.tableListContextMenuActionDeleteTrack = QWidgetAction(self)
         self.tableListContextMenuActionDeleteTrack.setText("delete")
         self.tableListContextMenu.addAction(
             self.tableListContextMenuActionDeleteTrack)
 
-        # настройка списка исполнителей альбомов:
+        # настройка UI-списка исполнителей альбомов:
         self.albumArtistsList = self.getConfiguredWidget(
             QListWidget(self),
             geometryConstants.ALBUMARTISTSLIST_X,
@@ -108,13 +108,15 @@ class mainWindow(QMainWindow):
         self.loadAlbumArtistsFromMusicTracksTableToAlbumArtistsList()
         self.albumArtistsList.sortItems(QtCore.Qt.SortOrder.AscendingOrder)
 
-        # настройка списка альбомов исполнителя:
+        # настройка UI-списка альбомов исполнителя:
         self.albumsOfArtistList = self.getConfiguredWidget(
             QListWidget(self),
             geometryConstants.ALBUMSOFARTISTLIST_X,
             geometryConstants.ALBUMSOFARTISTLIST_Y,
             geometryConstants.ALBUMSOFARTISTLIST_WIDTH,
             geometryConstants.ALBUMSOFARTISTLIST_HEIGHT)
+
+        self.albumsOfArtistList.sortItems(QtCore.Qt.SortOrder.AscendingOrder)
 
         # настройка плеера:
         pygame.init()
@@ -131,23 +133,27 @@ class mainWindow(QMainWindow):
 
         self.tableList.itemDoubleClicked.connect(self.playDoubleClickedTrack)
 
+        self.albumArtistsList.itemDoubleClicked.connect(self.loadAlbumsOfArtist)
+
     @staticmethod
-    def getConfiguredWidget(widget, x, y, width, height, text=None):
+    def getConfiguredWidget(widget,
+                            x, y, width, height, text=None):
         """
         возвращает настроенный элемент интерфейса.
         :param widget: инструкция объявления объекта
-        класса-наследника класса QWidget
+        класса-наследника класса QWidget;
         :param x: положение элемента интерфейса по горизонтали
         относительно левого верхнего угла (показывает, на сколько
-        пунктов элемент интерфейса расположен правее левого верхнего
+        пунктов элемент интерфейса расположен правее левого
+        верхнего угла);
+        :param y: положение элемента интерфейса по вертикали
+        относительно левого верхнего угла (показывает, на сколько
+        пунктов элемент интерфейса расположен ниже левого верхнего
         угла);
-        :param y: положение элемента интерфейса по вертикали относительно
-        левого верхнего угла (показывает, на сколько пунктов
-        элемент интерфейса расположен ниже левого верхнего угла);
         :param width: ширина элемента интерфейса;
         :param height: высота элемента интерфейса;
         :param text: подпись на элементе интерфейса (необязательный
-        параметр)
+        параметр).
         :return: настроенный элемент интерфейса (объект класса-наследника
         класса QWidget).
         """
@@ -161,9 +167,9 @@ class mainWindow(QMainWindow):
 
     def setRowInTableList(self, rowIndex, trackInfoTuple):
         """
-        заполняет строку табличного списка музыкальных
+        заполняет строку табличного UI-списка музыкальных
         композиций информацией о треке.
-        :param rowIndex: индекс строки табличного списка
+        :param rowIndex: индекс строки табличного UI-списка
         музыкальных композиций, которая будет заполнена
         информацией о треке;
         :param trackInfoTuple: кортеж с данными из контректной
@@ -181,7 +187,7 @@ class mainWindow(QMainWindow):
 
     def loadTracksFromMusicTracksTableToTableList(self):
         """
-        загружает в табличный список плеера треки из
+        загружает в табличный UI-список плеера треки из
         таблицы музыкальных композиций, находящейся в
         базы данных приложения.
         """
@@ -200,11 +206,11 @@ class mainWindow(QMainWindow):
     @staticmethod
     def setItemsOfListWidget(listWidget, itemsNamesList):
         """
-        заполняет список listWidget элементами из списка
-        listWithItemsInfo.
-        :param listWidget: ui-список (объект класса QListWidget).
-        :param listWithItemsNames: список со строками, хранящими в себе
-        названия элементов ui-списка.
+        заполняет UI-список элементами из списка c их названиями.
+        :param listWidget: UI-список, который необходимо заполнить
+        (объект класса QListWidget).
+        :param itemsNamesList: список со строками, хранящими
+        в себе названия элементов UI-списка.
         """
 
         for itemName in itemsNamesList:
@@ -215,8 +221,8 @@ class mainWindow(QMainWindow):
 
     def loadAlbumArtistsFromMusicTracksTableToAlbumArtistsList(self):
         """
-        загружает в список исполнителей альбома музыкантов из таблицы
-        музыкальных композиций, находящейся в базы данных приложения.
+        загружает в UI-список исполнителей альбомов музыкантов из таблицы
+        музыкальных композиций, находящейся в базе данных приложения.
         """
 
         listOfAllAlbumArtists = \
@@ -225,14 +231,35 @@ class mainWindow(QMainWindow):
         self.setItemsOfListWidget(self.albumArtistsList,
                                   listOfAllAlbumArtists)
 
+    def loadAlbumsOfArtist(self, item):
+        """
+        загружает в UI-список альбомов исполнителя
+        альбомы из таблицы музыкальных композиций,
+        находящейся в базе данных приложения, по
+        двойному клику на соответствующую выбранному
+        артисту строку в списке исполнителей альбомов.
+        :param item: строка UI-списка исполнителей
+        альбомов (объект класса QListWidgetItem),
+        по которой пользователь совершил двойной
+        клик.
+        """
+
+        self.albumsOfArtistList.clear()
+
+        listOfAllAlbumsOfArtist = \
+            filebase.getListOfAllAlbumsOfArtistFromMusicTracksTable(item.text())
+
+        self.setItemsOfListWidget(self.albumsOfArtistList,
+                                  listOfAllAlbumsOfArtist)
+
     def updateTableListRowCount(self, mode):
         """
-        обновляет количество строк в табличном списке
+        обновляет количество строк в табличном UI-списке
         музыкальных композиций в зависимости от режима
         mode; если это режим APPEND_ROW, увеличивает
-        количество строк в списке на 1, если же это режим
+        количество строк в нём на 1, если же это режим
         REMOVE_ROW - уменьшает на 1.
-        :param mode: режим обновления табличного списка
+        :param mode: режим обновления табличного UI-списка
         музыкальных композиций (целочисленная константа
         из перечисления updateTableListRowCountConstants).
         """
@@ -244,7 +271,7 @@ class mainWindow(QMainWindow):
 
     def addTrackToTableList(self):
         """
-        добавляет трек в табличный список музыкальных
+        добавляет трек в табличный UI-список музыкальных
         композиций.
         """
 
@@ -276,10 +303,10 @@ class mainWindow(QMainWindow):
 
     def contextMenuEvent(self, event):
         """
-        выводит контекстное меню табличного списка музыкальных
+        выводит контекстное меню табличного UI-списка музыкальных
         композиций при нажатии на правую клавишу мыши; если в
         момент клика правой клавишей мыши её курсор находился
-        на конкретной ячейке табличного списка, сохряняет в его
+        на конкретной ячейке табличного UI-списка, сохряняет в его
         атрибуте rightClickedCell эту ячейку (ячейка является
         объектом класса QTableWidgetItem).
         :param event: событие, после которого контекстное
@@ -304,9 +331,9 @@ class mainWindow(QMainWindow):
         """
         возвращает кортеж с названием трека и его
         исполнителем по индексу строки в табличном
-        списке музыкальных композиций.
+        UI-списке музыкальных композиций.
         :param rowIndex: индексу строки в табличном
-        списке музыкальных композиций.
+        UI-списке музыкальных композиций.
         :return: кортеж trackInfoTuple с названием
         трека и его исполнителем.
         """
@@ -319,7 +346,7 @@ class mainWindow(QMainWindow):
 
     def deleteTrack(self):
         """
-        удаляет трек из табличного списка музыкальных
+        удаляет трек из табличного UI-списка музыкальных
         композиций (композиция также удаляется из
         таблицы треков в базе данных приложения).
         """
@@ -349,14 +376,15 @@ class mainWindow(QMainWindow):
         """
         запускает проигрывание трека по двойному
         клику на связанную с ним ячейку в табличном
-        списке музыкальных композиций; если двойной
+        UI-списке музыкальных композиций; если двойной
         клик произошел по треку, который поставлен
         на паузу, возобновляет его проигрывание с
         момента паузы.
-        :param item: ячейка табличного списка музыкальных
-        композиций, связанная с конкретным треком,
-        по которой пользователь кликнул два раза
-        подряд (объект класса QTableWidgetItem).
+        :param item: ячейка табличного UI-списка
+        музыкальных композиций, связанная с
+        конкретным треком, по которой пользователь
+        совершил двойной клик (объект класса
+        QTableWidgetItem).
         """
 
         trackInfoTuple = self.getTrackInfoTupleByRowIndex(
