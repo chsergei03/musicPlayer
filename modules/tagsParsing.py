@@ -38,6 +38,7 @@ def getKeysDict(tagsDict):
         albumArtistKey = 'ALBUMARTIST'
         dateKey = 'DATE'
         genreKey = 'GENRE'
+        numberInTracklistKey = 'TRACKNUMBER'
         composerKey = 'COMPOSER'
     elif isinstance(tagsDict, mutagen.mp3.MP3):
         titleKey = 'TIT2'
@@ -46,6 +47,7 @@ def getKeysDict(tagsDict):
         albumArtistKey = 'TPE2'
         dateKey = 'TDRC'
         genreKey = 'TCON'
+        numberInTracklistKey = 'TRCK'
         composerKey = 'TCOM'
 
     keysDict = {
@@ -55,6 +57,7 @@ def getKeysDict(tagsDict):
         'albumArtist': albumArtistKey,
         'date': dateKey,
         'genre': genreKey,
+        'numberInTracklist': numberInTracklistKey,
         'composer': composerKey
     }
 
@@ -72,18 +75,28 @@ def getInfoFromTagsDictByKey(tagsDict, key):
 
     keysDict = getKeysDict(tagsDict)
 
-    return str(tagsDict[keysDict[key]][0])
+    info = str(tagsDict[keysDict[key]][0])
 
-def complementTrackInfoList(tagsDict, infoList):
+    if key == "trackNumber" and isinstance(tagsDict, mutagen.mp3.MP3):
+        slashPos = info.find('/')
+        info = info[:slashPos]
+
+    return info
+
+def getTagsList(tagsDict):
     """
-    дополняет список информации о музыкальной
-    композиции данными из тегов.
+    возвращает список тегов, присвоенных
+    музыкальной композиции, по их словарю.
     :param tagsDict: словарь тегов, присвоенных
     музыкальной композиции;
-    :param infoList: список информации о музыкальной
-    композиции.
+    :return: список тегов, присвоенных
+    музыкальной композиции, tagsList.
     """
 
+    tagsList = []
+
     for key in getKeysDict(tagsDict):
-        infoList.append(getInfoFromTagsDictByKey(tagsDict,
+        tagsList.append(getInfoFromTagsDictByKey(tagsDict,
                                                  key))
+
+    return tagsList
