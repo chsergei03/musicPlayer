@@ -13,9 +13,12 @@ import pygame
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QEvent, QObject
 from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QApplication, QMainWindow, \
-    QPushButton, QTableWidget, QTableWidgetItem, QListWidget, QListWidgetItem, \
-    QMenu, QWidgetAction, QAbstractItemView
+from PyQt6.QtWidgets import \
+    QApplication, QMainWindow, \
+    QMenu, QAbstractItemView, \
+    QWidgetAction, QPushButton, \
+    QTableWidget, QTableWidgetItem, \
+    QListWidget, QListWidgetItem
 
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
@@ -24,7 +27,9 @@ class geometryConstants(enum.IntEnum):
     BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
 
     BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
-    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 227, 0
+    BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 227, 0
+    BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 454, 0
+    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 681, 0
 
     TABLELIST_X, TABLELIST_Y = 0, 60
     TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
@@ -72,7 +77,23 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_ADDTOFILEBASE_Y,
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
-            "add to filebase")
+            "add")
+
+        self.buttonRewindTrack = self.getConfiguredWidget(
+            QPushButton(self),
+            geometryConstants.BUTTON_REWINDTRACK_X,
+            geometryConstants.BUTTON_REWINDTRACK_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
+            "rewind")
+
+        self.buttonPlayTrack = self.getConfiguredWidget(
+            QPushButton(self),
+            geometryConstants.BUTTON_PLAYTRACK_X,
+            geometryConstants.BUTTON_PLAYTRACK_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
+            "play")
 
         self.buttonPauseTrack = self.getConfiguredWidget(
             QPushButton(self),
@@ -80,7 +101,7 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_PAUSETRACK_Y,
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
-            "pause track")
+            "pause")
 
         # настройка параметров табличного UI-списка
         # музыкальных композиций:
@@ -138,7 +159,6 @@ class mainWindow(QMainWindow):
         # настройка плеера:
         pygame.init()
         pygame.mixer.init()
-        self.trackOnPlaybackPosition = 0
         self.trackOnPlaybackTitle = ""
         self.choosedAlbumArtistName = ""
 
@@ -148,16 +168,24 @@ class mainWindow(QMainWindow):
             self.addTracks)
 
         self.connectSignalWithSlot(
-            self.buttonPauseTrack.clicked,
-            self.pauseTrack)
-
-        self.connectSignalWithSlot(
             self.tableListContextMenuActionDeleteTrack.triggered,
             self.deleteTrack)
 
         self.connectSignalWithSlot(
+            self.buttonRewindTrack.clicked,
+            self.rewindTrack)
+
+        self.connectSignalWithSlot(
             self.tableList.itemDoubleClicked,
             self.playTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonPlayTrack.clicked,
+            self.unpauseTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonPauseTrack.clicked,
+            self.pauseTrack)
 
         self.connectSignalWithSlot(
             self.tracksOfAlbumList.itemDoubleClicked,
@@ -267,9 +295,9 @@ class mainWindow(QMainWindow):
 
     def loadTracksFromMusicTracksTableToTableList(self):
         """
-        загружает в табличный UI-список плеера треки из
-        таблицы музыкальных композиций, находящейся в
-        базы данных приложения.
+        загружает в табличный UI-список плеера
+        треки из таблицы музыкальных композиций,
+        находящейся в базы данных приложения.
         """
 
         listOfAllRowsOfMusicTracksTable = \
@@ -473,6 +501,17 @@ class mainWindow(QMainWindow):
         self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
         filebase.deleteRow(trackInfoTuple)
 
+    @staticmethod
+    def isThereTrackOnPlayback():
+        """
+        возвращает значение 'истина', если какой-либо
+        трек проигрывается или поставлен на паузу, в
+        противном случае - 'ложь'.
+        """
+
+        return pygame.mixer.music.get_pos() != \
+               musicPlayerConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
+
     def playTrack(self, item):
         """
         запускает проигрывание трека по двойному
@@ -486,7 +525,8 @@ class mainWindow(QMainWindow):
         композиций (или ячейка табличного UI-списка
         музыкальных композиций), по которой пользователь
         совершил двойной клик для проигрывания (объект
-        класса QListWidgetItem или объект класса QTableWidgetItem).
+        класса QListWidgetItem или объект класса
+        QTableWidgetItem).
         """
 
         if isinstance(item, QTableWidgetItem):
@@ -497,23 +537,46 @@ class mainWindow(QMainWindow):
 
         choosedTrackTitle = trackInfoTuple[0]
 
-        if (pygame.mixer.music.get_pos() ==
-            musicPlayerConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK) or \
+        if (not self.isThereTrackOnPlayback()) or \
                 (choosedTrackTitle != self.trackOnPlaybackTitle):
+            pygame.mixer.music.load(filebase.getTrackPath(trackInfoTuple))
+            pygame.mixer.music.play()
+
+            self.trackOnPlaybackTitle = choosedTrackTitle
+        else:
+            pygame.mixer.music.unpause()
+
+    def unpauseTrack(self):
+        """
+        возобновляет проигрывание поставленного
+        на паузу трека.
+        """
+
+        trackInfoTuple = self.getTrackInfoTupleByRowIndex(0)
+
+        if not self.isThereTrackOnPlayback():
             pygame.mixer.music.load(filebase.getTrackPath(trackInfoTuple))
             pygame.mixer.music.play()
         else:
             pygame.mixer.music.unpause()
 
-        self.trackOnPlaybackTitle = choosedTrackTitle
-
-    @staticmethod
-    def pauseTrack():
+    def pauseTrack(self):
         """
         ставит проигрываемый трек на паузу.
         """
 
-        pygame.mixer.music.pause()
+        if self.isThereTrackOnPlayback():
+            pygame.mixer.music.pause()
+
+    def rewindTrack(self):
+        """
+        перематывает проигрываемый трек
+        или трек, поставленный на паузу,
+        на его начало.
+        """
+
+        if self.isThereTrackOnPlayback():
+            pygame.mixer.music.rewind()
 
 def runApplication():
     """
