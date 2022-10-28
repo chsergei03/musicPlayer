@@ -20,43 +20,50 @@ from PyQt6.QtWidgets import \
     QTableWidget, QTableWidgetItem, \
     QListWidget, QListWidgetItem
 
+
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
-    WINDOW_WIDTH, WINDOW_HEIGHT = 908, 400
+    WINDOW_WIDTH, WINDOW_HEIGHT = 1372, 400
 
     BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
 
-    BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 0, 0
-    BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 227, 0
-    BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 454, 0
-    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 681, 0
+    BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 10, 0
+    BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 237, 0
+    BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 464, 0
+    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 691, 0
+    BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 918, 0
+    BUTTON_PREVTRACK_X, BUTTON_PREVTRACK_Y = 1145, 0
 
-    TABLELIST_X, TABLELIST_Y = 0, 60
+    TABLELIST_X, TABLELIST_Y = 10, 60
     TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
     TABLELIST_CELLSAREA_WIDTH, TABLELIST_CELLSAREA_HEIGHT = 207, 280
     TABLELIST_NUMBERSCOLUMN_WIDTH = 20
     TABLELIST_CELL_HEIGHT = 25
 
-    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 227, 60
+    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 237, 60
     ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 300
 
-    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 454, 60
+    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 464, 60
     ALBUMSOFARTISTLIST_WIDTH, ALBUMSOFARTISTLIST_HEIGHT = 217, 300
 
-    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 681, 60
+    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 691, 60
     TRACKSOFALBUMLIST_WIDTH, TRACKSOFALBUMLIST_HEIGHT = 217, 300
+
 
 class tableListConstants(enum.IntEnum):
     TITLE_INDEX = 0
     ARTIST_INDEX = 1
     N_COLUMNS = 2
 
+
 class musicPlayerConstants(enum.IntEnum):
     TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK = -1
+
 
 class updateTableListRowCountConstants(enum.IntEnum):
     APPEND_ROW = 0
     REMOVE_ROW = 1
+
 
 # главное окно музыкального плеера.
 class mainWindow(QMainWindow):
@@ -177,7 +184,7 @@ class mainWindow(QMainWindow):
 
         self.connectSignalWithSlot(
             self.tableList.itemDoubleClicked,
-            self.playTrack)
+            self.playTrackByDoubleClickOnTitle)
 
         self.connectSignalWithSlot(
             self.buttonPlayTrack.clicked,
@@ -189,7 +196,7 @@ class mainWindow(QMainWindow):
 
         self.connectSignalWithSlot(
             self.tracksOfAlbumList.itemDoubleClicked,
-            self.playTrack)
+            self.playTrackByDoubleClickOnTitle)
 
         self.connectSignalWithSlot(
             self.albumArtistsList.itemDoubleClicked,
@@ -271,7 +278,7 @@ class mainWindow(QMainWindow):
 
     def setRowInTableList(self,
                           rowIndex,
-                          trackInfoTuple):
+                          trackInfoList):
         """
         заполняет строку табличного UI-списка
         музыкальных композиций информацией о
@@ -279,19 +286,16 @@ class mainWindow(QMainWindow):
         :param rowIndex: индекс строки табличного
         UI-списка музыкальных композиций, которая
         будет заполнена информацией о треке;
-        :param trackInfoTuple: кортеж с данными
-        из контректной строки таблицы музыкальных
-        композиций, находящейся в базе данных
-        приложения.
+        :param trackInfoList: кортеж с .
         """
 
         self.tableList.setItem(rowIndex, tableListConstants.TITLE_INDEX,
                                QTableWidgetItem(
-                                   trackInfoTuple[tableListConstants.TITLE_INDEX]))
+                                   trackInfoList[tableListConstants.TITLE_INDEX]))
 
         self.tableList.setItem(rowIndex, tableListConstants.ARTIST_INDEX,
                                QTableWidgetItem(
-                                   trackInfoTuple[tableListConstants.ARTIST_INDEX]))
+                                   trackInfoList[tableListConstants.ARTIST_INDEX]))
 
     def loadTracksFromMusicTracksTableToTableList(self):
         """
@@ -312,7 +316,21 @@ class mainWindow(QMainWindow):
             currentRow += 1
 
     @staticmethod
-    def setItemsOfListWidget(listWidget,
+    def addItemToListWidget(listWidget, itemText):
+        """
+        добавляет элемент в UI-список.
+        :param listWidget: UI-список, в который
+        добавляется элемент;
+        :param itemText: подпись добавляемого в
+        UI-список элемента.
+        """
+
+        item = QListWidgetItem()
+        item.setText(itemText)
+
+        listWidget.addItem(item)
+
+    def setItemsOfListWidget(self, listWidget,
                              itemsNamesList):
         """
         заполняет UI-список элементами из списка
@@ -327,24 +345,20 @@ class mainWindow(QMainWindow):
         listWidget.clear()
 
         for itemName in itemsNamesList:
-            item = QListWidgetItem()
-            item.setText(*itemName)
-
-            listWidget.addItem(item)
+            self.addItemToListWidget(listWidget, itemName)
 
     def loadAlbumsOfArtist(self, item):
         """
         загружает в UI-список альбомов
-        исполнителя альбомы из таблицы
-        музыкальных композиций, находящейся
-        в базе данных приложения, по
-        двойному клику на соответствующую
-        выбранному артисту строку в
-        списке  исполнителей альбомов.
-        :param item: строка UI-списка
-        исполнителей альбомов (объект
-        класса QListWidgetItem), по
-        которой пользователь совершил
+        исполнителя из таблицы музыкальных
+        композиций, находящейся в базе
+        данных приложения, по двойному
+        клику на соответствующую выбранному
+        артисту строку в списке  исполнителей
+        альбомов.
+        :param item: строка UI-списка исполнителей
+        альбомов (объект класса QListWidgetItem),
+        по которой пользователь совершил
         двойной клик.
         """
 
@@ -403,12 +417,12 @@ class mainWindow(QMainWindow):
 
         self.updateTableListRowCount(updateTableListRowCountConstants.APPEND_ROW)
 
-        lastAddedToMusicTracksTableTrackInfoTuple = \
+        lastAddedToMusicTracksTableTrackInfoList = \
             filebase.getLastRow()
 
         self.setRowInTableList(
             trackToAppendRowIndex,
-            lastAddedToMusicTracksTableTrackInfoTuple)
+            lastAddedToMusicTracksTableTrackInfoList)
 
     def addTracks(self):
         """
@@ -455,22 +469,22 @@ class mainWindow(QMainWindow):
 
             self.tableListContextMenu.exec(event.globalPos())
 
-    def getTrackInfoTupleByRowIndex(self, rowIndex):
+    def getTrackInfoListByRowIndex(self, rowIndex):
         """
         возвращает кортеж с названием трека и его
         исполнителем по индексу строки в табличном
         UI-списке музыкальных композиций.
-        :param rowIndex: индексу строки в табличном
+        :param rowIndex: индекс строки в табличном
         UI-списке музыкальных композиций.
-        :return: кортеж trackInfoTuple с названием
+        :return: список trackInfoList с названием
         трека и его исполнителем.
         """
-        trackInfoTuple = (self.tableList.item(rowIndex,
-                                              tableListConstants.TITLE_INDEX).text(),
-                          self.tableList.item(rowIndex,
-                                              tableListConstants.ARTIST_INDEX).text())
+        trackInfoList = [self.tableList.item(rowIndex,
+                                             tableListConstants.TITLE_INDEX).text(),
+                         self.tableList.item(rowIndex,
+                                             tableListConstants.ARTIST_INDEX).text()]
 
-        return trackInfoTuple
+        return trackInfoList
 
     def deleteTrack(self):
         """
@@ -486,7 +500,7 @@ class mainWindow(QMainWindow):
         currentRowIndex = self.tableList.choosedCell.row()
         choosedCellRowIndex = currentRowIndex
 
-        trackInfoTuple = self.getTrackInfoTupleByRowIndex(
+        trackInfoList = self.getTrackInfoListByRowIndex(
             choosedCellRowIndex)
 
         nRewrites = self.tableList.rowCount() - choosedCellRowIndex - 1
@@ -499,7 +513,7 @@ class mainWindow(QMainWindow):
                 currentRowIndex += 1
 
         self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
-        filebase.deleteRow(trackInfoTuple)
+        filebase.deleteTrack(*trackInfoList)
 
     @staticmethod
     def isThereTrackOnPlayback():
@@ -512,7 +526,7 @@ class mainWindow(QMainWindow):
         return pygame.mixer.music.get_pos() != \
                musicPlayerConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
 
-    def playTrack(self, item):
+    def playTrackByDoubleClickOnTitle(self, item):
         """
         запускает проигрывание трека по двойному
         клику на связанную с ним строку в UI-списке
@@ -530,21 +544,23 @@ class mainWindow(QMainWindow):
         """
 
         if isinstance(item, QTableWidgetItem):
-            trackInfoTuple = self.getTrackInfoTupleByRowIndex(item.row())
+            trackInfoList = self.getTrackInfoListByRowIndex(item.row())
         elif isinstance(item, QListWidgetItem):
-            trackInfoTuple = (item.text(),
-                              self.choosedAlbumArtistName,)
+            trackInfoList = [item.text(),
+                             self.choosedAlbumArtistName]
 
-        choosedTrackTitle = trackInfoTuple[0]
-
-        if (not self.isThereTrackOnPlayback()) or \
-                (choosedTrackTitle != self.trackOnPlaybackTitle):
-            pygame.mixer.music.load(filebase.getTrackPath(trackInfoTuple))
-            pygame.mixer.music.play()
-
+        choosedTrackTitle = trackInfoList[0]
+        if choosedTrackTitle != self.trackOnPlaybackTitle:
             self.trackOnPlaybackTitle = choosedTrackTitle
+
+            filepath = filebase.getTrackPath(*trackInfoList)
+
+            print(filepath)
+
+            pygame.mixer.music.load(filebase.getTrackPath(*trackInfoList))
+            pygame.mixer.music.play()
         else:
-            pygame.mixer.music.unpause()
+            self.unpauseTrack()
 
     def unpauseTrack(self):
         """
@@ -552,12 +568,7 @@ class mainWindow(QMainWindow):
         на паузу трека.
         """
 
-        trackInfoTuple = self.getTrackInfoTupleByRowIndex(0)
-
-        if not self.isThereTrackOnPlayback():
-            pygame.mixer.music.load(filebase.getTrackPath(trackInfoTuple))
-            pygame.mixer.music.play()
-        else:
+        if self.isThereTrackOnPlayback():
             pygame.mixer.music.unpause()
 
     def pauseTrack(self):
@@ -577,6 +588,7 @@ class mainWindow(QMainWindow):
 
         if self.isThereTrackOnPlayback():
             pygame.mixer.music.rewind()
+
 
 def runApplication():
     """

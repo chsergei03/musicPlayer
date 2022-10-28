@@ -6,10 +6,12 @@ import modules.tagsParsing as tagsParsing
 
 FILEBASE_PATH = os.path.abspath("data/filebase/filebase.db")
 
+
 class executeQueryConstants(enum.IntEnum):
     NO_SELECT_QUERY = 0
     GET_ONE_ROW_BY_SELECT_QUERY = 1
     GET_ALL_ROWS_BY_SELECT_QUERY = 2
+
 
 def initConnectionAndCursor(filebasePath):
     """
@@ -27,6 +29,7 @@ def initConnectionAndCursor(filebasePath):
 
     return connection, cursor
 
+
 def closeConnectionAndCursor(connection,
                              cursor):
     """
@@ -40,6 +43,7 @@ def closeConnectionAndCursor(connection,
 
     cursor.close()
     connection.close()
+
 
 def sustainChanges(connection,
                    cursor):
@@ -56,6 +60,7 @@ def sustainChanges(connection,
 
     connection.commit()
     closeConnectionAndCursor(connection, cursor)
+
 
 def executeQuery(query,
                  queryType,
@@ -79,7 +84,7 @@ def executeQuery(query,
     запросу; возвращается, если запрос
     относится к типу GET_ONE_ROW_BY_SELECT_QUERY
     или GET_ALL_ROWS_BY_SELECT_QUERY ('строка'
-    представляет из себя кортеж с данными из
+    представляет из себя список с данными из
     контректной строки таблицы).
     """
 
@@ -94,13 +99,22 @@ def executeQuery(query,
         sustainChanges(connection, cursor)
     else:
         if queryType == executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY:
-            rowsList = cursor.fetchone()
+            rowsDatas = cursor.fetchone()
         elif queryType == executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY:
-            rowsList = cursor.fetchall()
+            rowsDatas = cursor.fetchall()
 
         closeConnectionAndCursor(connection, cursor)
 
-        return rowsList
+        if rowsDatas is not None:
+            if isinstance(rowsDatas, tuple):
+                return rowsDatas[0] if len(rowsDatas) == 1 else list(rowsDatas)
+            else:
+                return [list(rowData) if isinstance(rowData, tuple) \
+                                         and len(rowData) > 1 else rowData[0] \
+                        for rowData in rowsDatas]
+        else:
+            return rowsDatas
+
 
 def musicTracksTableInit():
     """
@@ -122,6 +136,7 @@ def musicTracksTableInit():
         composer TEXT NOT NULL,
         nListenings INTEGER NOT NULL);""",
         executeQueryConstants.NO_SELECT_QUERY)
+
 
 def addRow(fileToAddPath):
     """
@@ -148,13 +163,6 @@ def addRow(fileToAddPath):
         (fileToAddPath,))
 
     if rowWithFileToAddPath is None:
-        nListenings = 0
-
-        infoList = [fileToAddPath,
-                    *(tagsParsing.getTagsList(
-                        tagsParsing.getTagsDict(fileToAddPath))),
-                    nListenings]
-
         executeQuery(
             """INSERT INTO musicTracks 
             (filepath, title, album, artist, albumArtist, 
@@ -162,21 +170,23 @@ def addRow(fileToAddPath):
             numberInTracklist, composer, nListenings)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);""",
             executeQueryConstants.NO_SELECT_QUERY,
-            tuple(infoList))
+            tuple([fileToAddPath,
+                   *(tagsParsing.getTagsList(
+                       tagsParsing.getTagsDict(fileToAddPath))),
+                   0]))
+
 
 def getListOfAllRowsForTableList():
     """
-    возвращает список всех строк
-    таблицы музыкальных композиций,
-    находящейся в базе данных приложения
-    (строка представляет из себя кортеж
-    данных), для формирования табличного
-    списка музыкальных композиций.
+    возвращает список всех строк таблицы
+    музыкальных композиций, находящейся
+    в базе данных приложения, для формирования
+    табличного списка музыкальных композиций.
     :return: список всех 'строк' таблицы
     музыкальных композиций
     listOfAllRowsOfMusicTracksTable
-    ('строка' представляет из себя кортеж
-    с данными из контректной строки таблицы).
+    ('строка' представляет из себя список
+    с названием трека и именем его исполнителя).
     """
 
     listOfAllRowsOfMusicTracksTable = executeQuery(
@@ -186,6 +196,7 @@ def getListOfAllRowsForTableList():
 
     return listOfAllRowsOfMusicTracksTable
 
+
 def getListOfAllAlbumArtists():
     """
     возвращает список всех исполнителей
@@ -193,7 +204,7 @@ def getListOfAllAlbumArtists():
     композиций, находящейся в базе
     данных приложения, без повторений.
     :return: список всех исполнителей
-    альбомов listOfAllAlbumArtists.
+    альбомов без повторений listOfAllAlbumArtists.
     """
 
     listOfAllAlbumArtists = executeQuery(
@@ -203,6 +214,7 @@ def getListOfAllAlbumArtists():
 
     return listOfAllAlbumArtists
 
+
 def getListOfAlbumsOfArtist(artistName):
     """
     возвращает список всех альбомов
@@ -211,8 +223,9 @@ def getListOfAlbumsOfArtist(artistName):
     данных приложения, без повторений.
     :param artistName: строка с именем
     исполнителя.
-    :return: список всех альбомов
-    исполнителя listOfAllAlbumsOfArtist.
+    :return: список названий всех альбомов
+    исполнителя без повторений
+    listOfAllAlbumsOfArtist.
     """
 
     listOfAlbumsOfArtist = executeQuery(
@@ -224,22 +237,24 @@ def getListOfAlbumsOfArtist(artistName):
 
     return listOfAlbumsOfArtist
 
-def getListOfTracksOfAlbum(albumArtistName,
-                           albumName):
+
+def getListsWithInfoAboutTracksOfAlbum(albumArtistName,
+                                       albumName):
     """
-    возвращает список треков альбома
-    конкретного исполнителя из таблицы
-    музыкальных композиций, находящейся
-    в базе данных приложения, без повторений.
+    возвращает списки названий треков альбома
+    конкретного исполнителя и список путей до
+    их файлов из таблицы музыкальных композиций,
+    находящейся в базе данных приложения.
     :param albumArtistName: строка с именем
     исполнителя;
     :param albumName: строка с названием
     альбома.
-    :return: список треков альбома
-    конкретного исполнителя listOfTracksOfAlbum.
+    :return: списки названий треков альбома
+    конкретного исполнителя и список путей до
+    их файлов.
     """
 
-    listOfTracksOfAlbum = executeQuery(
+    listWithInfoAboutTracksOfAlbum = executeQuery(
         """SELECT DISTINCT title, filepath
         FROM musicTracks
         WHERE albumArtist = ? AND album = ?
@@ -247,45 +262,20 @@ def getListOfTracksOfAlbum(albumArtistName,
         executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY,
         (albumArtistName, albumName,))
 
-    return listOfTracksOfAlbum
+    trackTitlesList = [x[0] for x in listWithInfoAboutTracksOfAlbum]
+    trackFilepathsList = [x[1] for x in listWithInfoAboutTracksOfAlbum]
 
-def getListsWithInfoAboutTracksOfAlbum(albumArtistName,
-                                       albumName):
-    """
-    возвращает списки с информацией о треках альбома
-    (информацию об названии композиции и пути к файлу):
-    список с названиями треков альбома и список с путями
-    к файлам этих композиций.
-    :param albumArtistName: строка с именем исполнителя
-    альбома;
-    :param albumName: строка с названием альбома.
-    :return: список кортежей titlesList (каждый кортеж
-    содержит название конкретного трека альбома) и список
-    кортежей filepath (каждый кортеж содержит путь к файлу
-    конкретной композиции).
-    """
+    return [trackTitlesList, trackFilepathsList]
 
-    listOfTracksOfAlbum = getListOfTracksOfAlbum(albumArtistName,
-                                                 albumName)
-
-    titlesList, filepathsList = [], []
-
-    for track in listOfTracksOfAlbum:
-        title, filepath = tuple(zip(track))
-
-        titlesList.append(title)
-        filepathsList.append(title)
-
-    return [titlesList, filepathsList]
 
 def getLastRow():
     """
-    # возвращает последнюю строку таблицы
+    возвращает последнюю строку таблицы
     музыкальных композиций, находящейся в
     базе данных приложения.
     :return: последняя 'строка' таблицы
     музыкальных композиций lastRowOfMusicTracksTable
-    ('строка' представляет из себя кортеж
+    ('строка' представляет из себя список
     с названием трека, добавленного последним
     в таблицу, и его исполнителем).
     """
@@ -298,13 +288,16 @@ def getLastRow():
 
     return lastRowOfMusicTracksTable
 
-def deleteRow(trackInfoTuple):
+
+def deleteTrack(trackTitle, artistName):
     """
     удаляет трек из таблицы музыкальных
     композиций, находящейся в базе данных
     приложения.
-    :param trackInfoTuple: кортеж с названием
-    трека и его исполнителем.
+    :param trackTitle: строка с названием
+    трека;
+    :param artistName: строка с исполнителем
+    трека.
     """
 
     executeQuery(
@@ -312,18 +305,18 @@ def deleteRow(trackInfoTuple):
         FROM musicTracks 
         WHERE title = ? and artist = ?""",
         executeQueryConstants.NO_SELECT_QUERY,
-        trackInfoTuple)
+        (trackTitle, artistName,))
 
-def getTrackPath(trackInfoTuple):
+
+def getTrackPath(trackTitle, artistName):
     """
     возвращает путь к файлу музыкальной
-    композиции из таблицы треков,
-    находящейся в базе данных приложения,
-    по кортежу, в котором содержится
-    название песни и имя исполнителя.
-    :param trackInfoTuple: кортеж с
-    названием трека и именем его
-    исполнителя.
+    композиции из таблицы треков по
+    названию песни и имени исполнителя.
+    :param trackTitle: строка с
+    названием трека;
+    :param artistName: строка с именем
+    исполнителя трека.
     :return: строка trackPath, в которой
     содержится путь к файлу трека.
     """
@@ -331,11 +324,12 @@ def getTrackPath(trackInfoTuple):
     trackPath = executeQuery(
         """SELECT filepath 
         FROM musicTracks
-        WHERE title = ? and artist = ?""",
+        WHERE title = ? and albumArtist = ?""",
         executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY,
-        trackInfoTuple)[0]
+        (trackTitle, artistName,))
 
     return trackPath
+
 
 def initFilebaseIfNotExists():
     """

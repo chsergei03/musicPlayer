@@ -4,6 +4,7 @@ from mutagen import id3
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 
+
 def getTagsDict(filepath):
     """
     возвращает словарь тегов, присвоенных
@@ -20,6 +21,7 @@ def getTagsDict(filepath):
         return MP3(filepath)
     elif trackFormat == "flac":
         return FLAC(filepath)
+
 
 def getKeysDict(tagsDict):
     """
@@ -63,6 +65,7 @@ def getKeysDict(tagsDict):
 
     return keysDict
 
+
 def getInfoFromTagsDictByKey(tagsDict, key):
     """
     возвращает информацию о музыкальной композиции
@@ -82,6 +85,7 @@ def getInfoFromTagsDictByKey(tagsDict, key):
         info = info[:slashPos]
 
     return info
+
 
 def getTagsList(tagsDict):
     """
