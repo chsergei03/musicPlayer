@@ -32,8 +32,8 @@ class geometryConstants(enum.IntEnum):
     BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 237, 0
     BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 464, 0
     BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 691, 0
-    BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 918, 0
-    BUTTON_PREVTRACK_X, BUTTON_PREVTRACK_Y = 1145, 0
+    BUTTON_PREVTRACK_X, BUTTON_PREVTRACK_Y = 918, 0
+    BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 1145, 0
 
     TABLELIST_X, TABLELIST_Y = 10, 60
     TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
@@ -174,6 +174,22 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_HEIGHT,
             "pause")
 
+        self.buttonPrevTrack = self.getConfiguredWidget(
+            QPushButton(self),
+            geometryConstants.BUTTON_PREVTRACK_X,
+            geometryConstants.BUTTON_PREVTRACK_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
+            "prev track")
+
+        self.buttonNextTrack = self.getConfiguredWidget(
+            QPushButton(self),
+            geometryConstants.BUTTON_NEXTTRACK_X,
+            geometryConstants.BUTTON_NEXTTRACK_Y,
+            geometryConstants.BUTTON_WIDTH,
+            geometryConstants.BUTTON_HEIGHT,
+            "next track")
+
         # настройка параметров табличного UI-списка
         # музыкальных композиций:
         self.tableList = self.getConfiguredWidget(
@@ -232,12 +248,14 @@ class mainWindow(QMainWindow):
 
         # инициализация атрибутов, связанных с
         # средством проигрывания трека:
-        self.tracksQueue = [
+        self.playbackList = [
             filebase.getTrackPath(*track) \
             for track in filebase.getListOfAllRowsForTableList()]
 
         # инициализация атрибутов, связанных с выбором пользователя:
         self.trackOnPlaybackTitle = ""
+        self.trackOnPlaybackIndex = 0
+
         self.choosedAlbumArtistName = ""
 
         # настройка соединений сигналов со слотами:
@@ -268,6 +286,14 @@ class mainWindow(QMainWindow):
         self.connectSignalWithSlot(
             self.buttonRewindTrack.clicked,
             self.rewindTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonPrevTrack.clicked,
+            self.playPreviousTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonNextTrack.clicked,
+            self.playNextTrack)
 
         self.connectSignalWithSlot(
             self.tracksOfAlbumList.itemDoubleClicked,
@@ -511,7 +537,10 @@ class mainWindow(QMainWindow):
 
         if filesToAddPaths:
             for fileToAddPath in filesToAddPaths:
+                self.playbackList.append(fileToAddPath)
+
                 filebase.addRow(fileToAddPath)
+
                 self.addTrackToTableList()
 
     def contextMenuEvent(self, event):
@@ -626,11 +655,23 @@ class mainWindow(QMainWindow):
         choosedTrackTitle = trackInfoList[0]
         if choosedTrackTitle != self.trackOnPlaybackTitle:
             self.trackOnPlaybackTitle = choosedTrackTitle
+            self.trackOnPlaybackIndex = item.row()
 
             self.playCertainTrack(
                 filebase.getTrackPath(*trackInfoList))
         else:
             self.player.resumePlayback()
+
+    def playCertainTrackFromPlaybackList(self, index):
+        """
+        запускает проигрывание трека с
+        определенным индексом из списке
+        воспроизведения
+        :param index: индекс трека в листе
+        воспроизведения.
+        """
+
+        self.playCertainTrack(self.playbackList[index])
 
     def beginToPlayTracks(self):
         """
@@ -639,7 +680,8 @@ class mainWindow(QMainWindow):
         """
 
         if not self.player.isThereTrackOnPlayback():
-            self.playCertainTrack(self.tracksQueue[0])
+            self.playCertainTrackFromPlaybackList(
+                self.trackOnPlaybackIndex)
 
     def unpauseTrack(self):
         """
@@ -667,6 +709,34 @@ class mainWindow(QMainWindow):
 
         if self.player.isThereTrackOnPlayback():
             self.player.rewindPlayback()
+
+    def playPreviousTrack(self):
+        """
+        запускает проигрывание трека,
+        идущего в списке воспроизведения
+        за проигрываемым.
+        """
+
+        if self.trackOnPlaybackIndex > 0:
+            self.trackOnPlaybackIndex -= 1
+
+            self.playCertainTrackFromPlaybackList(self.trackOnPlaybackIndex)
+        else:
+            self.pauseTrack()
+
+            self.rewindTrack()
+
+    def playNextTrack(self):
+        """
+        запускает проигрывание трека,
+        идущего в очереди воспроизведения
+        за проигрываемым.
+        """
+
+        if self.trackOnPlaybackIndex < len(self.playbackList) - 1:
+            self.trackOnPlaybackIndex += 1
+
+            self.playCertainTrackFromPlaybackList(self.trackOnPlaybackIndex)
 
 
 def runApplication():
