@@ -8,11 +8,11 @@
       <jdbc-url>jdbc:sqlite:</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="filebase" uuid="83114109-8e8e-4fe2-9f03-0e17781cf2ce">
+    <data-source source="LOCAL" name="filebase" uuid="78da3092-0b4c-4fc1-be57-b1f29e8a6ff8">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:D:\university\bp\course project\code\playlistSorter\data\filebase\filebase.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:D:\university\bp\course project\code\musicPlayer\data\filebase\filebase.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
       <libraries>
         <library>
