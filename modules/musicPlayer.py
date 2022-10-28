@@ -230,6 +230,12 @@ class mainWindow(QMainWindow):
         # настройка средства проигрывания треков:
         self.player = playbackTool()
 
+        # инициализация атрибутов, связанных с
+        # средством проигрывания трека:
+        self.tracksQueue = [
+            filebase.getTrackPath(*track) \
+            for track in filebase.getListOfAllRowsForTableList()]
+
         # инициализация атрибутов, связанных с выбором пользователя:
         self.trackOnPlaybackTitle = ""
         self.choosedAlbumArtistName = ""
@@ -244,12 +250,12 @@ class mainWindow(QMainWindow):
             self.deleteTrack)
 
         self.connectSignalWithSlot(
-            self.buttonRewindTrack.clicked,
-            self.rewindTrack)
-
-        self.connectSignalWithSlot(
             self.tableList.itemDoubleClicked,
             self.playTrackByDoubleClickOnTitle)
+
+        self.connectSignalWithSlot(
+            self.buttonPlayTrack.clicked,
+            self.beginToPlayTracks)
 
         self.connectSignalWithSlot(
             self.buttonPlayTrack.clicked,
@@ -258,6 +264,10 @@ class mainWindow(QMainWindow):
         self.connectSignalWithSlot(
             self.buttonPauseTrack.clicked,
             self.pauseTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonRewindTrack.clicked,
+            self.rewindTrack)
 
         self.connectSignalWithSlot(
             self.tracksOfAlbumList.itemDoubleClicked,
@@ -580,6 +590,16 @@ class mainWindow(QMainWindow):
         self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
         filebase.deleteTrack(*trackInfoList)
 
+    def playCertainTrack(self, filepath):
+        """
+        загружает трек в средство проигрывания и
+        запускает его воспрозведение.
+        :param filepath: путь до файла трека.
+        """
+
+        self.player.loadToQueue(filepath)
+        self.player.startPlayback()
+
     def playTrackByDoubleClickOnTitle(self, item):
         """
         запускает проигрывание трека по двойному
@@ -607,10 +627,19 @@ class mainWindow(QMainWindow):
         if choosedTrackTitle != self.trackOnPlaybackTitle:
             self.trackOnPlaybackTitle = choosedTrackTitle
 
-            self.player.loadToQueue(filebase.getTrackPath(*trackInfoList))
-            self.player.startPlayback()
+            self.playCertainTrack(
+                filebase.getTrackPath(*trackInfoList))
         else:
             self.player.resumePlayback()
+
+    def beginToPlayTracks(self):
+        """
+        запускает проигрывание треков, если
+        оно не запущено.
+        """
+
+        if not self.player.isThereTrackOnPlayback():
+            self.playCertainTrack(self.tracksQueue[0])
 
     def unpauseTrack(self):
         """
