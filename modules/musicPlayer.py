@@ -8,6 +8,7 @@ import os
 from os import environ
 
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+
 import pygame
 
 from PyQt6 import QtCore
@@ -56,13 +57,76 @@ class tableListConstants(enum.IntEnum):
     N_COLUMNS = 2
 
 
-class musicPlayerConstants(enum.IntEnum):
+class playbackToolConstants(enum.IntEnum):
     TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK = -1
 
 
 class updateTableListRowCountConstants(enum.IntEnum):
     APPEND_ROW = 0
     REMOVE_ROW = 1
+
+
+# средство воспроизведения треков.
+class playbackTool:
+    def __init__(self):
+        pygame.init()
+        pygame.mixer.init()
+
+    @staticmethod
+    def isThereTrackOnPlayback():
+        """
+        возвращает значение 'истина', если какой-либо
+        трек проигрывается или поставлен на паузу, в
+        противном случае - 'ложь'.
+        """
+
+        return pygame.mixer.music.get_pos() != \
+               playbackToolConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
+
+    @staticmethod
+    def loadToQueue(filepath):
+        """
+        загружает трек в очередь плеера pygame
+        :param filepath: путь до файла трека.
+        """
+
+        pygame.mixer.music.load(filepath)
+
+    @staticmethod
+    def startPlayback():
+        """
+        запускает проигрывание плеером pygame
+        трека, находящегося в очереди.
+        """
+
+        pygame.mixer.music.play()
+
+    @staticmethod
+    def resumePlayback():
+        """
+        возобновляет проигрывание плеером pygame
+        трека, находящегося в очереди.
+        """
+
+        pygame.mixer.music.unpause()
+
+    @staticmethod
+    def pausePlayback():
+        """
+        ставит на паузу проигрывание плеером pygame
+        трека, находящегося в очереди.
+        """
+
+        pygame.mixer.music.pause()
+
+    @staticmethod
+    def rewindPlayback():
+        """
+        перезапускает проигрывание плеером pygame
+        трека, находящегося в очереди.
+        """
+
+        pygame.mixer.music.rewind()
 
 
 # главное окно музыкального плеера.
@@ -163,9 +227,10 @@ class mainWindow(QMainWindow):
             geometryConstants.TRACKSOFALBUMLIST_HEIGHT,
             QtCore.Qt.SortOrder.AscendingOrder)
 
-        # настройка плеера:
-        pygame.init()
-        pygame.mixer.init()
+        # настройка средства проигрывания треков:
+        self.player = playbackTool()
+
+        # инициализация атрибутов, связанных с выбором пользователя:
         self.trackOnPlaybackTitle = ""
         self.choosedAlbumArtistName = ""
 
@@ -515,17 +580,6 @@ class mainWindow(QMainWindow):
         self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
         filebase.deleteTrack(*trackInfoList)
 
-    @staticmethod
-    def isThereTrackOnPlayback():
-        """
-        возвращает значение 'истина', если какой-либо
-        трек проигрывается или поставлен на паузу, в
-        противном случае - 'ложь'.
-        """
-
-        return pygame.mixer.music.get_pos() != \
-               musicPlayerConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
-
     def playTrackByDoubleClickOnTitle(self, item):
         """
         запускает проигрывание трека по двойному
@@ -553,14 +607,10 @@ class mainWindow(QMainWindow):
         if choosedTrackTitle != self.trackOnPlaybackTitle:
             self.trackOnPlaybackTitle = choosedTrackTitle
 
-            filepath = filebase.getTrackPath(*trackInfoList)
-
-            print(filepath)
-
-            pygame.mixer.music.load(filebase.getTrackPath(*trackInfoList))
-            pygame.mixer.music.play()
+            self.player.loadToQueue(filebase.getTrackPath(*trackInfoList))
+            self.player.startPlayback()
         else:
-            self.unpauseTrack()
+            self.player.resumePlayback()
 
     def unpauseTrack(self):
         """
@@ -568,16 +618,16 @@ class mainWindow(QMainWindow):
         на паузу трека.
         """
 
-        if self.isThereTrackOnPlayback():
-            pygame.mixer.music.unpause()
+        if self.player.isThereTrackOnPlayback():
+            self.player.resumePlayback()
 
     def pauseTrack(self):
         """
         ставит проигрываемый трек на паузу.
         """
 
-        if self.isThereTrackOnPlayback():
-            pygame.mixer.music.pause()
+        if self.player.isThereTrackOnPlayback():
+            self.player.pausePlayback()
 
     def rewindTrack(self):
         """
@@ -586,8 +636,8 @@ class mainWindow(QMainWindow):
         на его начало.
         """
 
-        if self.isThereTrackOnPlayback():
-            pygame.mixer.music.rewind()
+        if self.player.isThereTrackOnPlayback():
+            self.player.rewindPlayback()
 
 
 def runApplication():

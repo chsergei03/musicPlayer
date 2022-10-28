@@ -316,7 +316,7 @@ def getTrackPath(trackTitle, artistName):
     :param trackTitle: строка с
     названием трека;
     :param artistName: строка с именем
-    исполнителя трека.
+    исполнителя трека;
     :return: строка trackPath, в которой
     содержится путь к файлу трека.
     """
