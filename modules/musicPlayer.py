@@ -1,4 +1,4 @@
-import modules.filebase as filebase
+import modules.database as database
 
 import sys
 import enum
@@ -16,54 +16,20 @@ from PyQt6.QtCore import Qt, QEvent, QObject
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import \
     QApplication, QMainWindow, \
+    QLabel, \
     QMenu, QAbstractItemView, \
     QWidgetAction, QPushButton, \
     QTableWidget, QTableWidgetItem, \
     QListWidget, QListWidgetItem
 
-
-class geometryConstants(enum.IntEnum):
-    WINDOW_X, WINDOW_Y = 0, 0
-    WINDOW_WIDTH, WINDOW_HEIGHT = 1372, 400
-
-    BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
-
-    BUTTON_ADDTOFILEBASE_X, BUTTON_ADDTOFILEBASE_Y = 10, 0
-    BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 237, 0
-    BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 464, 0
-    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 691, 0
-    BUTTON_PREVTRACK_X, BUTTON_PREVTRACK_Y = 918, 0
-    BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 1145, 0
-
-    TABLELIST_X, TABLELIST_Y = 10, 60
-    TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
-    TABLELIST_CELLSAREA_WIDTH, TABLELIST_CELLSAREA_HEIGHT = 207, 280
-    TABLELIST_NUMBERSCOLUMN_WIDTH = 20
-    TABLELIST_CELL_HEIGHT = 25
-
-    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 237, 60
-    ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 300
-
-    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 464, 60
-    ALBUMSOFARTISTLIST_WIDTH, ALBUMSOFARTISTLIST_HEIGHT = 217, 300
-
-    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 691, 60
-    TRACKSOFALBUMLIST_WIDTH, TRACKSOFALBUMLIST_HEIGHT = 217, 300
-
-
-class tableListConstants(enum.IntEnum):
-    TITLE_INDEX = 0
-    ARTIST_INDEX = 1
-    N_COLUMNS = 2
+START_POS = 0.115
 
 
 class playbackToolConstants(enum.IntEnum):
     TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK = -1
-
-
-class updateTableListRowCountConstants(enum.IntEnum):
-    APPEND_ROW = 0
-    REMOVE_ROW = 1
+    MUSIC_END = pygame.USEREVENT + 1
+    PLAY_PREVIOUS_TRACK = -1
+    PLAY_NEXT_TRACK = 1
 
 
 # средство воспроизведения треков.
@@ -71,26 +37,46 @@ class playbackTool:
     def __init__(self):
         pygame.init()
         pygame.mixer.init()
+        pygame.mixer.music.set_endevent(
+            playbackToolConstants.MUSIC_END)
 
     @staticmethod
-    def isThereTrackOnPlayback():
+    def isBusy():
+        """
+        возвращает значение 'истина', если какой-либо
+        трек в данный момент проигрывается, в противном
+        случае - 'ложь'.
+        """
+
+        return pygame.mixer.music.get_busy()
+
+    def isPlaybackPaused(self):
         """
         возвращает значение 'истина', если какой-либо
         трек проигрывается или поставлен на паузу, в
         противном случае - 'ложь'.
         """
 
-        return pygame.mixer.music.get_pos() != \
+        return not self.isBusy() and self.pos() != \
                playbackToolConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
 
     @staticmethod
-    def loadToQueue(filepath):
+    def load(filepath):
         """
-        загружает трек в очередь плеера pygame
+        загружает трек в плеер pygame.
         :param filepath: путь до файла трека.
         """
 
         pygame.mixer.music.load(filepath)
+
+    @staticmethod
+    def loadToQueue(filepath):
+        """
+        загружает трек в очередь плеера pygame.
+        :param filepath: путь до файла трека.
+        """
+
+        pygame.mixer.music.queue(filepath)
 
     @staticmethod
     def startPlayback():
@@ -99,7 +85,7 @@ class playbackTool:
         трека, находящегося в очереди.
         """
 
-        pygame.mixer.music.play()
+        pygame.mixer.music.play(start=START_POS)
 
     @staticmethod
     def resumePlayback():
@@ -120,6 +106,15 @@ class playbackTool:
         pygame.mixer.music.pause()
 
     @staticmethod
+    def stopPlayback():
+        """
+        останавливает проигрывание плеером pygame
+        трека, находящегося в очереди.
+        """
+
+        pygame.mixer.music.stop()
+
+    @staticmethod
     def rewindPlayback():
         """
         перезапускает проигрывание плеером pygame
@@ -127,6 +122,61 @@ class playbackTool:
         """
 
         pygame.mixer.music.rewind()
+
+    @staticmethod
+    def pos():
+        """
+        возвращает позицию в проигрываемом плеером
+        pygame треке.
+        """
+
+        return pygame.mixer.music.get_pos()
+
+
+class geometryConstants(enum.IntEnum):
+    WINDOW_X, WINDOW_Y = 0, 0
+    WINDOW_WIDTH, WINDOW_HEIGHT = 1372, 400
+
+    BUTTON_WIDTH, BUTTON_HEIGHT = 217, 50
+
+    BUTTON_ADDTODATABASE_X, BUTTON_ADDTODATABASE_Y = 10, 0
+    BUTTON_REWINDTRACK_X, BUTTON_REWINDTRACK_Y = 237, 0
+    BUTTON_PLAYTRACK_X, BUTTON_PLAYTRACK_Y = 464, 0
+    BUTTON_PAUSETRACK_X, BUTTON_PAUSETRACK_Y = 691, 0
+    BUTTON_PREVTRACK_X, BUTTON_PREVTRACK_Y = 1145, 0
+    BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 1145, 60
+
+    TABLELIST_X, TABLELIST_Y = 10, 60
+    TABLELIST_WIDTH, TABLELIST_HEIGHT = 217, 300
+    TABLELIST_CELLSAREA_WIDTH, TABLELIST_CELLSAREA_HEIGHT = 207, 280
+    TABLELIST_NUMBERSCOLUMN_WIDTH = 20
+    TABLELIST_CELL_HEIGHT = 25
+
+    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 237, 60
+    ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 300
+
+    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 464, 60
+    ALBUMSOFARTISTLIST_WIDTH, ALBUMSOFARTISTLIST_HEIGHT = 217, 300
+
+    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 691, 60
+    TRACKSOFALBUMLIST_WIDTH, TRACKSOFALBUMLIST_HEIGHT = 217, 300
+
+    TRACKONPLAYBACKALBUMARTISTLABEL_X, TRACKONPLAYBACKALBUMARTISTLABEL_Y = 918, 20
+    TRACKONPLAYBACKALBUMARTISTLABEL_WIDTH, TRACKONPLAYBACKALBUMARTISTLABEL_HEIGHT = 217, 90
+
+    TRACKONPLAYBACKTITLELABEL_X, TRACKONPLAYBACKTITLELABEL_Y = 918, 40
+    TRACKONPLAYBACKTITLELABEL_WIDTH, TRACKONPLAYBACKTITLELABEL_HEIGHT = 217, 90
+
+
+class tableListConstants(enum.IntEnum):
+    TITLE_INDEX = 0
+    ARTIST_INDEX = 1
+    N_COLUMNS = 2
+
+
+class updateTableListRowCountConstants(enum.IntEnum):
+    APPEND_ROW = 0
+    REMOVE_ROW = 1
 
 
 # главное окно музыкального плеера.
@@ -144,8 +194,8 @@ class mainWindow(QMainWindow):
         # настройка кнопок:
         self.buttonAddTracks = self.getConfiguredWidget(
             QPushButton(self),
-            geometryConstants.BUTTON_ADDTOFILEBASE_X,
-            geometryConstants.BUTTON_ADDTOFILEBASE_Y,
+            geometryConstants.BUTTON_ADDTODATABASE_X,
+            geometryConstants.BUTTON_ADDTODATABASE_Y,
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             "add")
@@ -174,7 +224,7 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_HEIGHT,
             "pause")
 
-        self.buttonPrevTrack = self.getConfiguredWidget(
+        self.buttonPreviousTrack = self.getConfiguredWidget(
             QPushButton(self),
             geometryConstants.BUTTON_PREVTRACK_X,
             geometryConstants.BUTTON_PREVTRACK_Y,
@@ -223,7 +273,7 @@ class mainWindow(QMainWindow):
             QtCore.Qt.SortOrder.AscendingOrder)
 
         self.setItemsOfListWidget(self.albumArtistsList,
-                                  filebase.getListOfAllAlbumArtists())
+                                  database.getListOfAllAlbumArtists())
 
         # настройка UI-списка альбомов исполнителя:
         self.albumsOfArtistList = self.getConfiguredWidget(
@@ -243,20 +293,38 @@ class mainWindow(QMainWindow):
             geometryConstants.TRACKSOFALBUMLIST_HEIGHT,
             QtCore.Qt.SortOrder.AscendingOrder)
 
+        # настройка надписей:
+        self.trackOnPlaybackAlbumArtistLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.TRACKONPLAYBACKALBUMARTISTLABEL_X,
+            geometryConstants.TRACKONPLAYBACKALBUMARTISTLABEL_Y,
+            geometryConstants.TRACKONPLAYBACKALBUMARTISTLABEL_WIDTH,
+            geometryConstants.TRACKONPLAYBACKALBUMARTISTLABEL_HEIGHT)
+
+        self.trackOnPlaybackTitleLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.TRACKONPLAYBACKTITLELABEL_X,
+            geometryConstants.TRACKONPLAYBACKTITLELABEL_Y,
+            geometryConstants.TRACKONPLAYBACKTITLELABEL_WIDTH,
+            geometryConstants.TRACKONPLAYBACKTITLELABEL_HEIGHT)
+
         # настройка средства проигрывания треков:
         self.player = playbackTool()
 
         # инициализация атрибутов, связанных с
         # средством проигрывания трека:
-        self.playbackList = [
-            filebase.getTrackPath(*track) \
-            for track in filebase.getListOfAllRowsForTableList()]
+        self.allTracksInDatabaseList = database.getListOfAllRowsForTableList()
+        self.playbackQueue = self.allTracksInDatabaseList
 
         # инициализация атрибутов, связанных с выбором пользователя:
         self.trackOnPlaybackTitle = ""
+        self.trackOnPlaybackAlbumArtist = ""
         self.trackOnPlaybackIndex = 0
 
         self.choosedAlbumArtistName = ""
+        self.choosedAlbum = ""
+
+        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
 
         # настройка соединений сигналов со слотами:
         self.connectSignalWithSlot(
@@ -273,10 +341,6 @@ class mainWindow(QMainWindow):
 
         self.connectSignalWithSlot(
             self.buttonPlayTrack.clicked,
-            self.beginToPlayTracks)
-
-        self.connectSignalWithSlot(
-            self.buttonPlayTrack.clicked,
             self.unpauseTrack)
 
         self.connectSignalWithSlot(
@@ -288,12 +352,16 @@ class mainWindow(QMainWindow):
             self.rewindTrack)
 
         self.connectSignalWithSlot(
-            self.buttonPrevTrack.clicked,
+            self.buttonPreviousTrack.clicked,
             self.playPreviousTrack)
 
         self.connectSignalWithSlot(
             self.buttonNextTrack.clicked,
             self.playNextTrack)
+
+        self.connectSignalWithSlot(
+            self.buttonPlayTrack.clicked,
+            self.playTrack)
 
         self.connectSignalWithSlot(
             self.tracksOfAlbumList.itemDoubleClicked,
@@ -406,7 +474,7 @@ class mainWindow(QMainWindow):
         """
 
         listOfAllRowsOfMusicTracksTable = \
-            filebase.getListOfAllRowsForTableList()
+            database.getListOfAllRowsForTableList()
 
         self.tableList.setRowCount(len(listOfAllRowsOfMusicTracksTable))
 
@@ -466,7 +534,7 @@ class mainWindow(QMainWindow):
         self.choosedAlbumArtistName = item.text()
 
         self.setItemsOfListWidget(self.albumsOfArtistList,
-                                  filebase.getListOfAlbumsOfArtist(
+                                  database.getListOfAlbumsOfArtist(
                                       self.choosedAlbumArtistName))
 
     def loadTracksOfAlbum(self, item):
@@ -485,9 +553,11 @@ class mainWindow(QMainWindow):
         """
 
         self.setItemsOfListWidget(self.tracksOfAlbumList,
-                                  filebase.getListsWithInfoAboutTracksOfAlbum(
+                                  database.getListsWithInfoAboutTracksOfAlbum(
                                       self.choosedAlbumArtistName,
                                       item.text())[0])
+
+        self.choosedAlbum = item.text()
 
     def updateTableListRowCount(self, mode):
         """
@@ -519,7 +589,7 @@ class mainWindow(QMainWindow):
         self.updateTableListRowCount(updateTableListRowCountConstants.APPEND_ROW)
 
         lastAddedToMusicTracksTableTrackInfoList = \
-            filebase.getLastRow()
+            database.getLastRow()
 
         self.setRowInTableList(
             trackToAppendRowIndex,
@@ -537,9 +607,10 @@ class mainWindow(QMainWindow):
 
         if filesToAddPaths:
             for fileToAddPath in filesToAddPaths:
-                self.playbackList.append(fileToAddPath)
+                database.addRow(fileToAddPath)
 
-                filebase.addRow(fileToAddPath)
+                self.allTracksInDatabaseList.append(
+                    database.getTrackInfoListByPath(fileToAddPath))
 
                 self.addTrackToTableList()
 
@@ -598,36 +669,88 @@ class mainWindow(QMainWindow):
         базе данных приложения).
         """
 
-        listOfAllRowsOfMusicTracksTable = \
-            filebase.getListOfAllRowsForTableList()
+        choosedCellRow = self.tableList.choosedCell.row()
+        currentRow = choosedCellRow
 
-        currentRowIndex = self.tableList.choosedCell.row()
-        choosedCellRowIndex = currentRowIndex
+        trackInfoList = self.allTracksInDatabaseList[choosedCellRow]
+        trackInfoList.pop(-1)
 
-        trackInfoList = self.getTrackInfoListByRowIndex(
-            choosedCellRowIndex)
-
-        nRewrites = self.tableList.rowCount() - choosedCellRowIndex - 1
+        nRewrites = self.tableList.rowCount() - choosedCellRow - 1
         if nRewrites > 0:
             for i in range(nRewrites):
                 self.setRowInTableList(
-                    currentRowIndex,
-                    listOfAllRowsOfMusicTracksTable[currentRowIndex + 1])
+                    currentRow,
+                    self.allTracksInDatabaseList[currentRow + 1])
 
-                currentRowIndex += 1
+                currentRow += 1
 
         self.updateTableListRowCount(updateTableListRowCountConstants.REMOVE_ROW)
-        filebase.deleteTrack(*trackInfoList)
 
-    def playCertainTrack(self, filepath):
+        self.allTracksInDatabaseList.pop(choosedCellRow)
+
+        if self.player.isBusy():
+            self.player.stopPlayback()
+
+        database.deleteTrack(*trackInfoList)
+
+    def playTrack(self):
         """
-        загружает трек в средство проигрывания и
-        запускает его воспрозведение.
-        :param filepath: путь до файла трека.
+        загружает трек в средство проигрывания
+        и запускает его воспрозведение.
         """
 
-        self.player.loadToQueue(filepath)
-        self.player.startPlayback()
+        if self.player.isPlaybackPaused():
+            self.player.resumePlayback()
+        else:
+            trackInfoList = self.playbackQueue[self.trackOnPlaybackIndex]
+
+            self.trackOnPlaybackTitle, \
+            self.trackOnPlaybackAlbumArtist, \
+            filepath = trackInfoList
+
+            self.trackOnPlaybackTitleLabel.setText(
+                self.trackOnPlaybackTitle)
+
+            self.trackOnPlaybackAlbumArtistLabel.setText(
+                self.trackOnPlaybackAlbumArtist)
+
+            self.player.load(filepath)
+            self.player.startPlayback()
+
+            self.playbackToolEventFilter()
+
+    def playbackToolEventFilter(self):
+        """
+        обрабатывает события средства
+        воспроизведения треков (объекта
+        player класса playbackTool).
+        """
+
+        isPlaybackRunning = True
+        while isPlaybackRunning:
+            for event in pygame.event.get():
+                if event.type == playbackToolConstants.MUSIC_END:
+                    if self.playbackDirection == \
+                            playbackToolConstants.PLAY_NEXT_TRACK and \
+                            len(self.playbackQueue) - self.trackOnPlaybackIndex > 1:
+                        self.trackOnPlaybackIndex += 1
+
+                        self.playTrack()
+                    elif self.playbackDirection == \
+                            playbackToolConstants.PLAY_PREVIOUS_TRACK:
+                        if self.trackOnPlaybackIndex == 0:
+                            self.rewindTrack()
+                        else:
+                            self.trackOnPlaybackIndex -= 1
+
+                        self.playTrack()
+
+                        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
+                    else:
+                        isPlaybackRunning = False
+
+                        self.trackOnPlaybackTitleLabel.setText("")
+                        self.trackOnPlaybackAlbumArtistLabel.setText("")
 
     def playTrackByDoubleClickOnTitle(self, item):
         """
@@ -647,41 +770,20 @@ class mainWindow(QMainWindow):
         """
 
         if isinstance(item, QTableWidgetItem):
-            trackInfoList = self.getTrackInfoListByRowIndex(item.row())
+            itemRow = item.row()
+            self.playbackQueue = self.allTracksInDatabaseList
         elif isinstance(item, QListWidgetItem):
-            trackInfoList = [item.text(),
-                             self.choosedAlbumArtistName]
+            itemRow = self.tracksOfAlbumList.row(item)
+            self.playbackQueue = database.getListWithInfoAboutTracksOfAlbum(
+                self.choosedAlbumArtistName,
+                self.choosedAlbum)
 
-        choosedTrackTitle = trackInfoList[0]
+        choosedTrackTitle = self.playbackQueue[itemRow][0]
+
         if choosedTrackTitle != self.trackOnPlaybackTitle:
-            self.trackOnPlaybackTitle = choosedTrackTitle
-            self.trackOnPlaybackIndex = item.row()
+            self.trackOnPlaybackIndex = itemRow
 
-            self.playCertainTrack(
-                filebase.getTrackPath(*trackInfoList))
-        else:
-            self.player.resumePlayback()
-
-    def playCertainTrackFromPlaybackList(self, index):
-        """
-        запускает проигрывание трека с
-        определенным индексом из списке
-        воспроизведения
-        :param index: индекс трека в листе
-        воспроизведения.
-        """
-
-        self.playCertainTrack(self.playbackList[index])
-
-    def beginToPlayTracks(self):
-        """
-        запускает проигрывание треков, если
-        оно не запущено.
-        """
-
-        if not self.player.isThereTrackOnPlayback():
-            self.playCertainTrackFromPlaybackList(
-                self.trackOnPlaybackIndex)
+        self.playTrack()
 
     def unpauseTrack(self):
         """
@@ -689,7 +791,7 @@ class mainWindow(QMainWindow):
         на паузу трека.
         """
 
-        if self.player.isThereTrackOnPlayback():
+        if self.player.isBusy():
             self.player.resumePlayback()
 
     def pauseTrack(self):
@@ -697,7 +799,7 @@ class mainWindow(QMainWindow):
         ставит проигрываемый трек на паузу.
         """
 
-        if self.player.isThereTrackOnPlayback():
+        if self.player.isBusy():
             self.player.pausePlayback()
 
     def rewindTrack(self):
@@ -707,8 +809,31 @@ class mainWindow(QMainWindow):
         на его начало.
         """
 
-        if self.player.isThereTrackOnPlayback():
-            self.player.rewindPlayback()
+        self.player.rewindPlayback()
+
+    def stopTrack(self):
+        """
+        останавливает воспроизведение треков.
+        """
+
+        self.player.stopPlayback()
+
+    def changeTrack(self, changeTrackFlagValue):
+        """
+        переключает воспроизведение треков на
+        предыдущий или следующий в очереди трек
+        в зависимости от значения переменной
+        changeTrackFlagValue.
+        :param changeTrackFlagValue: переменная,
+        определяющая переключение воспроизведения
+        треков на предыдущий или следующий в очереди
+        трек.
+        """
+
+        self.trackOnPlaybackIndex += changeTrackFlagValue
+
+        if self.player.isBusy():
+            self.stopTrack()
 
     def playPreviousTrack(self):
         """
@@ -717,26 +842,18 @@ class mainWindow(QMainWindow):
         за проигрываемым.
         """
 
-        if self.trackOnPlaybackIndex > 0:
-            self.trackOnPlaybackIndex -= 1
-
-            self.playCertainTrackFromPlaybackList(self.trackOnPlaybackIndex)
-        else:
-            self.pauseTrack()
-
-            self.rewindTrack()
+        self.playbackDirection = playbackToolConstants.PLAY_PREVIOUS_TRACK
+        self.stopTrack()
 
     def playNextTrack(self):
         """
         запускает проигрывание трека,
         идущего в очереди воспроизведения
-        за проигрываемым.
+        за проигрываемым (если он есть).
         """
 
-        if self.trackOnPlaybackIndex < len(self.playbackList) - 1:
-            self.trackOnPlaybackIndex += 1
-
-            self.playCertainTrackFromPlaybackList(self.trackOnPlaybackIndex)
+        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
+        self.stopTrack()
 
 
 def runApplication():

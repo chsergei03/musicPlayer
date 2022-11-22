@@ -1,7 +1,7 @@
-import modules.filebase as filebase
+import modules.database as database
 import modules.musicPlayer as musicPlayer
 
 if __name__ == "__main__":
-    filebase.initFilebaseIfNotExists()
+    database.initDatabaseIfNotExists()
 
     musicPlayer.runApplication()

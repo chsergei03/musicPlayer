@@ -4,7 +4,7 @@ import os.path
 
 import modules.tagsParsing as tagsParsing
 
-FILEBASE_PATH = os.path.abspath("data/filebase/filebase.db")
+DATABASE_PATH = os.path.abspath("data/database/database.db")
 
 
 class executeQueryConstants(enum.IntEnum):
@@ -13,18 +13,18 @@ class executeQueryConstants(enum.IntEnum):
     GET_ALL_ROWS_BY_SELECT_QUERY = 2
 
 
-def initConnectionAndCursor(filebasePath):
+def initConnectionAndCursor(databasePath):
     """
     создает объект соединения с базой данных
     и курсор для работы с её содержимым.
-    :param filebasePath: путь к файлу базы
+    :param databasePath: путь к файлу базы
     данных.
     :return: объект соединения с базой данных
     connection, курсор для работы с её содержимым
     cursor.
     """
 
-    connection = sqlite3.connect(filebasePath)
+    connection = sqlite3.connect(databasePath)
     cursor = connection.cursor()
 
     return connection, cursor
@@ -88,7 +88,7 @@ def executeQuery(query,
     контректной строки таблицы).
     """
 
-    connection, cursor = initConnectionAndCursor(FILEBASE_PATH)
+    connection, cursor = initConnectionAndCursor(DATABASE_PATH)
 
     if tupleWithInfo is None:
         cursor.execute(query)
@@ -190,7 +190,7 @@ def getListOfAllRowsForTableList():
     """
 
     listOfAllRowsOfMusicTracksTable = executeQuery(
-        """SELECT title, artist 
+        """SELECT title, artist, filepath
         FROM musicTracks""",
         executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY)
 
@@ -238,6 +238,33 @@ def getListOfAlbumsOfArtist(artistName):
     return listOfAlbumsOfArtist
 
 
+def getListWithInfoAboutTracksOfAlbum(albumArtistName,
+                                      albumName):
+    """
+    возвращает списки названий треков альбома
+    конкретного исполнителя и список путей до
+    их файлов из таблицы музыкальных композиций,
+    находящейся в базе данных приложения.
+    :param albumArtistName: строка с именем
+    исполнителя;
+    :param albumName: строка с названием
+    альбома.
+    :return: списки названий треков альбома
+    конкретного исполнителя и список путей до
+    их файлов.
+    """
+
+    listWithInfoAboutTracksOfAlbum = executeQuery(
+        """SELECT DISTINCT title, artist, filepath
+        FROM musicTracks
+        WHERE albumArtist = ? AND album = ?
+        ORDER BY numberInTracklist ASC""",
+        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY,
+        (albumArtistName, albumName,))
+
+    return listWithInfoAboutTracksOfAlbum
+
+
 def getListsWithInfoAboutTracksOfAlbum(albumArtistName,
                                        albumName):
     """
@@ -254,16 +281,12 @@ def getListsWithInfoAboutTracksOfAlbum(albumArtistName,
     их файлов.
     """
 
-    listWithInfoAboutTracksOfAlbum = executeQuery(
-        """SELECT DISTINCT title, filepath
-        FROM musicTracks
-        WHERE albumArtist = ? AND album = ?
-        ORDER BY numberInTracklist ASC""",
-        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY,
-        (albumArtistName, albumName,))
+    listWithInfoAboutTracksOfAlbum = \
+        getListWithInfoAboutTracksOfAlbum(albumArtistName,
+                                          albumName)
 
     trackTitlesList = [x[0] for x in listWithInfoAboutTracksOfAlbum]
-    trackFilepathsList = [x[1] for x in listWithInfoAboutTracksOfAlbum]
+    trackFilepathsList = [x[-1] for x in listWithInfoAboutTracksOfAlbum]
 
     return [trackTitlesList, trackFilepathsList]
 
@@ -281,7 +304,7 @@ def getLastRow():
     """
 
     lastRowOfMusicTracksTable = executeQuery(
-        """SELECT title, albumArtist 
+        """SELECT title, artist 
         FROM musicTracks 
         ORDER BY id DESC""",
         executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY)
@@ -324,14 +347,37 @@ def getTrackPath(trackTitle, artistName):
     trackPath = executeQuery(
         """SELECT filepath 
         FROM musicTracks
-        WHERE title = ? and albumArtist = ?""",
+        WHERE title = ? and artist = ?""",
         executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY,
         (trackTitle, artistName,))
 
     return trackPath
 
 
-def initFilebaseIfNotExists():
+def getTrackInfoListByPath(filepath):
+    """
+    возвращает название музыкальной
+    композиции из таблицы треков по
+    пути к файлу.
+    :param filepath: строка с путём
+    до файла трека;
+    :return: строка trackTitle, в которой
+    содержится название трека.
+    """
+
+    trackInfoList = executeQuery(
+        """SELECT title, artist
+        FROM musicTracks
+        WHERE filepath = ?""",
+        executeQueryConstants.GET_ONE_ROW_BY_SELECT_QUERY,
+        (filepath,))
+
+    trackInfoList.append(filepath)
+
+    return trackInfoList
+
+
+def initDatabaseIfNotExists():
     """
     инициализирует базу данных
     приложения, создавая в ней
@@ -339,5 +385,5 @@ def initFilebaseIfNotExists():
     если файл базы данных не существует.
     """
 
-    if not os.path.exists(FILEBASE_PATH):
+    if not os.path.exists(DATABASE_PATH):
         musicTracksTableInit()
