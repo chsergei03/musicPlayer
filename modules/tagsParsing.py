@@ -1,36 +1,26 @@
-import mutagen
+import modules.trackDataExtraction as tde
+import modules.database as db
 
-from mutagen import id3
+import enum
+
+from pathlib import Path
+
+import mutagen
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
-
-
-def getTagsDict(filepath):
-    """
-    возвращает словарь тегов, присвоенных
-    музыкальной композиции, файл которой
-    расположен по пути filepath.
-    :param filepath: путь к файлу трека.
-    :return: словарь тегов, присвоенных
-    музыкальной композиции.
-    """
-
-    trackFormat = filepath[-4:]
-
-    if trackFormat == ".mp3":
-        return MP3(filepath)
-    elif trackFormat == "flac":
-        return FLAC(filepath)
+from mutagen.id3 import ID3
 
 
 def getKeysDict(tagsDict):
     """
-    возвращает словарь ключей словаря тегов
-    музыкальной композиции.
-    :param tagsDict: словарь тегов, присвоенных
-    музыкальной композиции.
-    :return: словарь ключей словаря тегов трека
-    keysDict.
+    возвращает словарь ключей
+    словаря тегов музыкальной
+    композиции.
+    :param tagsDict: словарь
+    тегов, присвоенных музыкальной
+    композиции.
+    :return: словарь ключей
+    словаря тегов трека keysDict.
     """
 
     if isinstance(tagsDict, mutagen.flac.FLAC):
@@ -41,7 +31,6 @@ def getKeysDict(tagsDict):
         dateKey = 'DATE'
         genreKey = 'GENRE'
         numberInTracklistKey = 'TRACKNUMBER'
-        composerKey = 'COMPOSER'
     elif isinstance(tagsDict, mutagen.mp3.MP3):
         titleKey = 'TIT2'
         albumKey = 'TALB'
@@ -50,7 +39,6 @@ def getKeysDict(tagsDict):
         dateKey = 'TDRC'
         genreKey = 'TCON'
         numberInTracklistKey = 'TRCK'
-        composerKey = 'TCOM'
 
     keysDict = {
         'title': titleKey,
@@ -59,20 +47,78 @@ def getKeysDict(tagsDict):
         'albumArtist': albumArtistKey,
         'date': dateKey,
         'genre': genreKey,
-        'numberInTracklist': numberInTracklistKey,
-        'composer': composerKey
+        'numberInTracklist': numberInTracklistKey
     }
 
     return keysDict
 
 
-def getInfoFromTagsDictByKey(tagsDict, key):
+def prescribeTagsOfUnknownTrack(filepath, tagsDict):
     """
-    возвращает информацию о музыкальной композиции
-    по ключу словаря ключей словаря тегов.
-    :param tagsDict: словарь тегов, присвоенных
-    музыкальной композиции;
-    :param key: ключ словаря ключей словаря тегов.
+    заполняет теги трека, не имеющего метаданных.
+    :param filepath: путь к файлу трека;
+    :param tagsDict: словарь тегов трека.
+    """
+
+    keysDict = getKeysDict(tagsDict)
+
+    for key in keysDict:
+        if key == 'title':
+            infoText = Path(filepath).stem
+        elif key == 'trackNumber':
+            infoText = str(db.getNTracksWithTagsOfUnknownTrack() + 1)
+        else:
+            infoText = "Неизвестно"
+
+        if isinstance(tagsDict, mutagen.mp3.MP3):
+            tagsDict[keysDict[key]] = mutagen.id3.TextFrame(encoding=3,
+                                                            text=[infoText])
+        else:
+            tagsDict[keysDict[key]] = infoText
+
+    return tagsDict
+
+
+def getTagsDict(filepath):
+    """
+    возвращает словарь тегов,
+    присвоенных музыкальной
+    композиции, файл которой
+    расположен по пути filepath.
+    :param filepath: путь к
+    файлу трека.
+    :return: словарь тегов,
+    присвоенных музыкальной
+    композиции.
+    """
+
+    trackFileExtension = \
+        tde.getTrackFileExtension(filepath)
+
+    if trackFileExtension == \
+            tde.formatsConstants.MP3_FORMAT_FILE_EXTENSION:
+        tagsDict = MP3(filepath)
+    elif trackFileExtension == \
+            tde.formatsConstants.FLAC_FORMAT_FILE_EXTENSION:
+        tagsDict = FLAC(filepath)
+
+    if len(tagsDict) == 0:
+        prescribeTagsOfUnknownTrack(filepath,
+                                    tagsDict)
+
+    return tagsDict
+
+
+def getInfoFromTagsDictByKey(tagsDict,
+                             key):
+    """
+    возвращает информацию о музыкальной
+    композиции по ключу словаря ключей
+    словаря тегов.
+    :param tagsDict: словарь тегов,
+    присвоенных музыкальной композиции;
+    :param key: ключ словаря ключей словаря
+    тегов.
     :return: строка с информацией о треке.
     """
 
@@ -89,12 +135,15 @@ def getInfoFromTagsDictByKey(tagsDict, key):
 
 def getTagsList(tagsDict):
     """
-    возвращает список тегов, присвоенных
-    музыкальной композиции, по их словарю.
-    :param tagsDict: словарь тегов, присвоенных
-    музыкальной композиции;
-    :return: список тегов, присвоенных
-    музыкальной композиции, tagsList.
+    возвращает список тегов,
+    присвоенных музыкальной
+    композиции, по их словарю.
+    :param tagsDict: словарь
+    тегов, присвоенных музыкальной
+    композиции;
+    :return: список тегов,
+    присвоенных музыкальной
+    композиции, tagsList.
     """
 
     tagsList = []

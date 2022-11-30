@@ -1,8 +1,7 @@
-import modules.database as database
+import modules.database as db
 
 import sys
 import enum
-import easygui
 
 import os
 from os import environ
@@ -10,6 +9,8 @@ from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
 import pygame
+
+import easygui
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QEvent, QObject
@@ -22,10 +23,10 @@ from PyQt6.QtWidgets import \
     QTableWidget, QTableWidgetItem, \
     QListWidget, QListWidgetItem
 
-START_POS = 0.115
+PLAYBACK_START_POS = 0.115
 
 
-class playbackToolConstants(enum.IntEnum):
+class playbackControlConstants(enum.IntEnum):
     TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK = -1
     MUSIC_END = pygame.USEREVENT + 1
     PLAY_PREVIOUS_TRACK = -1
@@ -38,7 +39,7 @@ class playbackTool:
         pygame.init()
         pygame.mixer.init()
         pygame.mixer.music.set_endevent(
-            playbackToolConstants.MUSIC_END)
+            playbackControlConstants.MUSIC_END)
 
     @staticmethod
     def isBusy():
@@ -58,13 +59,14 @@ class playbackTool:
         """
 
         return not self.isBusy() and self.pos() != \
-               playbackToolConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
+               playbackControlConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
 
     @staticmethod
     def load(filepath):
         """
         загружает трек в плеер pygame.
-        :param filepath: путь до файла трека.
+        :param filepath: строка, содержащая
+        путь к файлу трека.
         """
 
         pygame.mixer.music.load(filepath)
@@ -73,7 +75,8 @@ class playbackTool:
     def loadToQueue(filepath):
         """
         загружает трек в очередь плеера pygame.
-        :param filepath: путь до файла трека.
+        :param filepath: строка, содержащая
+        путь к файлу трека.
         """
 
         pygame.mixer.music.queue(filepath)
@@ -85,7 +88,7 @@ class playbackTool:
         трека, находящегося в очереди.
         """
 
-        pygame.mixer.music.play(start=START_POS)
+        pygame.mixer.music.play(start=PLAYBACK_START_POS)
 
     @staticmethod
     def resumePlayback():
@@ -273,7 +276,7 @@ class mainWindow(QMainWindow):
             QtCore.Qt.SortOrder.AscendingOrder)
 
         self.setItemsOfListWidget(self.albumArtistsList,
-                                  database.getListOfAllAlbumArtists())
+                                  db.getListOfAllAlbumArtists())
 
         # настройка UI-списка альбомов исполнителя:
         self.albumsOfArtistList = self.getConfiguredWidget(
@@ -313,7 +316,7 @@ class mainWindow(QMainWindow):
 
         # инициализация атрибутов, связанных с
         # средством проигрывания трека:
-        self.allTracksInDatabaseList = database.getListOfAllRowsForTableList()
+        self.allTracksInDatabaseList = db.getListOfAllRowsForTableList()
         self.playbackQueue = self.allTracksInDatabaseList
 
         # инициализация атрибутов, связанных с выбором пользователя:
@@ -324,7 +327,7 @@ class mainWindow(QMainWindow):
         self.choosedAlbumArtistName = ""
         self.choosedAlbum = ""
 
-        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
+        self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
 
         # настройка соединений сигналов со слотами:
         self.connectSignalWithSlot(
@@ -474,7 +477,7 @@ class mainWindow(QMainWindow):
         """
 
         listOfAllRowsOfMusicTracksTable = \
-            database.getListOfAllRowsForTableList()
+            db.getListOfAllRowsForTableList()
 
         self.tableList.setRowCount(len(listOfAllRowsOfMusicTracksTable))
 
@@ -534,7 +537,7 @@ class mainWindow(QMainWindow):
         self.choosedAlbumArtistName = item.text()
 
         self.setItemsOfListWidget(self.albumsOfArtistList,
-                                  database.getListOfAlbumsOfArtist(
+                                  db.getListOfAlbumsOfArtist(
                                       self.choosedAlbumArtistName))
 
     def loadTracksOfAlbum(self, item):
@@ -553,7 +556,7 @@ class mainWindow(QMainWindow):
         """
 
         self.setItemsOfListWidget(self.tracksOfAlbumList,
-                                  database.getListsWithInfoAboutTracksOfAlbum(
+                                  db.getListsWithInfoAboutTracksOfAlbum(
                                       self.choosedAlbumArtistName,
                                       item.text())[0])
 
@@ -589,7 +592,7 @@ class mainWindow(QMainWindow):
         self.updateTableListRowCount(updateTableListRowCountConstants.APPEND_ROW)
 
         lastAddedToMusicTracksTableTrackInfoList = \
-            database.getLastRow()
+            db.getLastRow()
 
         self.setRowInTableList(
             trackToAppendRowIndex,
@@ -607,10 +610,10 @@ class mainWindow(QMainWindow):
 
         if filesToAddPaths:
             for fileToAddPath in filesToAddPaths:
-                database.addRow(fileToAddPath)
+                db.addRow(fileToAddPath)
 
                 self.allTracksInDatabaseList.append(
-                    database.getTrackInfoListByPath(fileToAddPath))
+                    db.getTrackInfoListByPath(fileToAddPath))
 
                 self.addTrackToTableList()
 
@@ -691,7 +694,7 @@ class mainWindow(QMainWindow):
         if self.player.isBusy():
             self.player.stopPlayback()
 
-        database.deleteTrack(*trackInfoList)
+        db.deleteTrack(*trackInfoList)
 
     def playTrack(self):
         """
@@ -729,15 +732,15 @@ class mainWindow(QMainWindow):
         isPlaybackRunning = True
         while isPlaybackRunning:
             for event in pygame.event.get():
-                if event.type == playbackToolConstants.MUSIC_END:
+                if event.type == playbackControlConstants.MUSIC_END:
                     if self.playbackDirection == \
-                            playbackToolConstants.PLAY_NEXT_TRACK and \
+                            playbackControlConstants.PLAY_NEXT_TRACK and \
                             len(self.playbackQueue) - self.trackOnPlaybackIndex > 1:
                         self.trackOnPlaybackIndex += 1
 
                         self.playTrack()
                     elif self.playbackDirection == \
-                            playbackToolConstants.PLAY_PREVIOUS_TRACK:
+                            playbackControlConstants.PLAY_PREVIOUS_TRACK:
                         if self.trackOnPlaybackIndex == 0:
                             self.rewindTrack()
                         else:
@@ -745,7 +748,7 @@ class mainWindow(QMainWindow):
 
                         self.playTrack()
 
-                        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
+                        self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
                     else:
                         isPlaybackRunning = False
 
@@ -774,7 +777,7 @@ class mainWindow(QMainWindow):
             self.playbackQueue = self.allTracksInDatabaseList
         elif isinstance(item, QListWidgetItem):
             itemRow = self.tracksOfAlbumList.row(item)
-            self.playbackQueue = database.getListWithInfoAboutTracksOfAlbum(
+            self.playbackQueue = db.getListWithInfoAboutTracksOfAlbum(
                 self.choosedAlbumArtistName,
                 self.choosedAlbum)
 
@@ -842,8 +845,11 @@ class mainWindow(QMainWindow):
         за проигрываемым.
         """
 
-        self.playbackDirection = playbackToolConstants.PLAY_PREVIOUS_TRACK
-        self.stopTrack()
+        if self.trackOnPlaybackIndex > 0:
+            self.playbackDirection = playbackControlConstants.PLAY_PREVIOUS_TRACK
+            self.stopTrack()
+        else:
+            self.rewindTrack()
 
     def playNextTrack(self):
         """
@@ -852,8 +858,9 @@ class mainWindow(QMainWindow):
         за проигрываемым (если он есть).
         """
 
-        self.playbackDirection = playbackToolConstants.PLAY_NEXT_TRACK
-        self.stopTrack()
+        if len(self.playbackQueue) - self.trackOnPlaybackIndex > 1:
+            self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
+            self.stopTrack()
 
 
 def runApplication():

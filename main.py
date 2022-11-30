@@ -1,7 +1,9 @@
-import modules.database as database
-import modules.musicPlayer as musicPlayer
+import modules.database as db
+import modules.musicPlayer as mp
+
+from os import path
 
 if __name__ == "__main__":
-    database.initDatabaseIfNotExists()
+    db.initDatabaseIfNotExists()
 
-    musicPlayer.runApplication()
+    mp.runApplication()

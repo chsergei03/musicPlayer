@@ -1,8 +1,9 @@
-import enum
-import sqlite3
-import os.path
+import modules.trackDataExtraction as tde
+import modules.tagsParsing as tp
 
-import modules.tagsParsing as tagsParsing
+import enum
+import os.path
+import sqlite3
 
 DATABASE_PATH = os.path.abspath("data/database/database.db")
 
@@ -17,8 +18,8 @@ def initConnectionAndCursor(databasePath):
     """
     создает объект соединения с базой данных
     и курсор для работы с её содержимым.
-    :param databasePath: путь к файлу базы
-    данных.
+    :param databasePath: строка, содержащая
+    путь к файлу базы данных.
     :return: объект соединения с базой данных
     connection, курсор для работы с её содержимым
     cursor.
@@ -133,8 +134,7 @@ def musicTracksTableInit():
         yearRelease INT NOT NULL,
         genre TEXT NOT NULL,
         numberInTracklist INTEGER NOT NULL,
-        composer TEXT NOT NULL,
-        nListenings INTEGER NOT NULL);""",
+        bpm INTEGER NOT NULL);""",
         executeQueryConstants.NO_SELECT_QUERY)
 
 
@@ -151,8 +151,8 @@ def addRow(fileToAddPath):
     данные заносятся в список, который
     затем будет преобразован в кортеж для
     вставки новой строки в таблицу).
-    :param fileToAddPath: путь к файлу
-    добавляемого трека.
+    :param fileToAddPath: строка, содержащая
+    путь к файлу добавляемого трека.
     """
 
     rowWithFileToAddPath = executeQuery(
@@ -166,14 +166,13 @@ def addRow(fileToAddPath):
         executeQuery(
             """INSERT INTO musicTracks 
             (filepath, title, album, artist, albumArtist, 
-            yearRelease, genre,  
-            numberInTracklist, composer, nListenings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);""",
+            yearRelease, genre, numberInTracklist, bpm)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);""",
             executeQueryConstants.NO_SELECT_QUERY,
             tuple([fileToAddPath,
-                   *(tagsParsing.getTagsList(
-                       tagsParsing.getTagsDict(fileToAddPath))),
-                   0]))
+                   *(tp.getTagsList(
+                       tp.getTagsDict(fileToAddPath))),
+                   tde.getBPM(fileToAddPath)]))
 
 
 def getListOfAllRowsForTableList():
@@ -333,15 +332,16 @@ def deleteTrack(trackTitle, artistName):
 
 def getTrackPath(trackTitle, artistName):
     """
-    возвращает путь к файлу музыкальной
-    композиции из таблицы треков по
-    названию песни и имени исполнителя.
+    возвращает строку, содержащую путь
+    к файлу музыкальной композиции из
+    таблицы треков по названию песни и
+    имени исполнителя.
     :param trackTitle: строка с
     названием трека;
     :param artistName: строка с именем
     исполнителя трека;
-    :return: строка trackPath, в которой
-    содержится путь к файлу трека.
+    :return: строка trackPath, содержащая
+    путь к файлу трека.
     """
 
     trackPath = executeQuery(
@@ -358,9 +358,9 @@ def getTrackInfoListByPath(filepath):
     """
     возвращает название музыкальной
     композиции из таблицы треков по
-    пути к файлу.
-    :param filepath: строка с путём
-    до файла трека;
+    пути к файлу
+    :param filepath: строка, в которой
+    содержится путь к файлу трека;
     :return: строка trackTitle, в которой
     содержится название трека.
     """
@@ -375,6 +375,28 @@ def getTrackInfoListByPath(filepath):
     trackInfoList.append(filepath)
 
     return trackInfoList
+
+
+def getNTracksWithTagsOfUnknownTrack():
+    """
+    возвращает количество треков в базе
+    данных приложения, у которых отсутствуют
+    теги, определяющие альбом, исполнителя,
+    жанр и т.д.
+    :return: количество треков в базе
+    данных приложения, у которых отсутствуют
+    теги, определяющие альбом, исполнителя,
+    жанр и т.д.
+    """
+
+    tracksWithTagsOfUnknownTrackList = executeQuery(
+        """SELECT id
+        FROM musicTracks
+        WHERE filepath = ?""",
+        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY,
+        ("Неизвестно",))
+
+    return len(tracksWithTagsOfUnknownTrackList)
 
 
 def initDatabaseIfNotExists():
