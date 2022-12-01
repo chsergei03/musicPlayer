@@ -30,6 +30,8 @@ from PyQt6.QtWidgets import \
     QTableWidget, QTableWidgetItem, \
     QListWidget, QListWidgetItem
 
+from threading import Thread
+
 import time
 
 PLAYBACK_START_POS = 0.115
@@ -147,7 +149,7 @@ class playbackTool:
 
 class geometryConstants(enum.IntEnum):
     WINDOW_X, WINDOW_Y = 0, 0
-    WINDOW_WIDTH, WINDOW_HEIGHT = 903, 397
+    WINDOW_WIDTH, WINDOW_HEIGHT = 921, 417
 
     BUTTON_WIDTH, BUTTON_HEIGHT = 50, 50
 
@@ -156,19 +158,19 @@ class geometryConstants(enum.IntEnum):
     BUTTON_PLAYPAUSETRACK_X, BUTTON_PLAYPAUSETRACK_Y = 130, 10
     BUTTON_NEXTTRACK_X, BUTTON_NEXTTRACK_Y = 190, 10
 
-    TABLELIST_X, TABLELIST_Y = 10, 80
-    TABLELIST_WIDTH, TABLELIST_HEIGHT = 202, 305
-    TABLELIST_CELLSAREA_WIDTH, TABLELIST_CELLSAREA_HEIGHT = 202, 280
+    TABLELIST_X, TABLELIST_Y = 10, 100
+    TABLELIST_WIDTH, TABLELIST_HEIGHT = 220, 305
+    TABLELIST_CELLSAREA_WIDTH, TABLELIST_CELLSAREA_HEIGHT = 220, 280
     TABLELIST_NUMBERSCOLUMN_WIDTH = 0
     TABLELIST_CELL_HEIGHT = 25
 
-    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 222, 80
+    ALBUMARTISTSLIST_X, ALBUMARTISTSLIST_Y = 240, 100
     ALBUMARTISTSLIST_WIDTH, ALBUMARTISTSLIST_HEIGHT = 217, 305
 
-    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 449, 80
+    ALBUMSOFARTISTLIST_X, ALBUMSOFARTISTLIST_Y = 467, 100
     ALBUMSOFARTISTLIST_WIDTH, ALBUMSOFARTISTLIST_HEIGHT = 217, 305
 
-    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 676, 80
+    TRACKSOFALBUMLIST_X, TRACKSOFALBUMLIST_Y = 694, 100
     TRACKSOFALBUMLIST_WIDTH, TRACKSOFALBUMLIST_HEIGHT = 217, 305
 
     TRACKONPLAYBACKALBUMARTISTLABEL_X, TRACKONPLAYBACKALBUMARTISTLABEL_Y = 250, 15
@@ -179,6 +181,18 @@ class geometryConstants(enum.IntEnum):
 
     CURRENTTIMELABEL_X, CURRENTTIMELABEL_Y = 250, 55
     CURRENTTIMELABEL_WIDTH, CURRENTTIMELABEL_HEIGHT = 40, 20
+
+    ALLTRACKSLABEL_X, ALLTRACKSLABEL_Y = 10, 75
+    ALLTRACKSLABEL_WIDTH, ALLTRACKSLABEL_HEIGHT = 220, 20
+
+    ALLALBUMARTISTSLABEL_X, ALLALBUMARTISTSLABEL_Y = 240, 75
+    ALLALBUMARTISTSLABEL_WIDTH, ALLALBUMARTISTSLABEL_HEIGHT = 220, 20
+
+    ALLALBUMSOFARTISTLABEL_X, ALLALBUMSOFARTISTLABEL_Y = 467, 75
+    ALLALBUMSOFARTISTLABEL_WIDTH, ALLALBUMSOFARTISTLABEL_HEIGHT = 220, 20
+
+    TRACKSOFALBUMLABEL_X, TRACKSOFALBUMLABEL_Y = 694, 75
+    TRACKSOFALBUMLABEL_WIDTH, TRACKSOFALBUMLABEL_HEIGHT = 220, 20
 
 
 class tableListConstants(enum.IntEnum):
@@ -233,8 +247,8 @@ class mainWindow(QMainWindow):
                 background-color: rgb(220, 220, 220);
             }
             
-            QPushButton:pressed{
-                background-color: rgb(220, 220, 220);
+            QPushButton:hover:pressed{
+                background-color: rgb(190, 190, 190);
             }
             """
 
@@ -279,12 +293,13 @@ class mainWindow(QMainWindow):
         self.tableListStyleSheet = \
             """
             QTableWidget{
-                gridline-color:white;
-                border:1px solid black;
+                background-color:white;
+                gridline-color:gray;
+                border:1px solid gray;
             }
             
             QTableWidget::item{
-                background-color:rgb(255, 255, 255);
+                background-color:white;
                 color:black;
                 border-style:outset;
             }
@@ -293,21 +308,41 @@ class mainWindow(QMainWindow):
                 background-color: rgb(220, 220, 220);
             }
             
+            QTableWidget::item:hover:pressed{
+                background-color: rgb(190, 190, 190);
+            }
+            
+            QTableWidget::item:selected:!active{
+                background-color: rgb(190, 190, 190);
+            }
+            
             QTableWidget::item:selected{
-                background-color: rgb(200, 200, 200);
+                background-color: rgb(220, 220, 220);
             }
             
             QHeaderView{
-                background-color:rgb(255, 255, 255);
+                background-color:white;
+                border-style:outset;
             }
             
             QHeaderView::section{
-                background-color:rgb(255, 255, 255);
-                border-style:outset;
+                background-color:white;
             }
             
             QHeaderView::section:hover:enabled{
                 background-color:rgb(220, 220, 220);
+            }
+            
+            QHeaderView::section:hover:pressed{
+                background-color:rgb(190, 190, 190);
+            }
+            
+            QHeaderView::section:selected:!active{
+                background-color: rgb(190, 190, 190);
+            }
+            
+            QHeaderView::section:selected{
+                background-color: rgb(220, 220, 220);
             }
             """
 
@@ -326,6 +361,7 @@ class mainWindow(QMainWindow):
         self.tableList.horizontalHeaderItem(
             tableListConstants.ARTIST_INDEX).setFont(self.fontForTableList)
         self.tableList.verticalHeader().setVisible(False)
+        self.tableList.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.tableList.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.loadTracksFromMusicTracksTableToTableList()
 
@@ -338,6 +374,22 @@ class mainWindow(QMainWindow):
                 background-color:white;
                 color:black;
                 border:1px solid black;
+            }
+            
+            QMenu::item:hover:enabled{
+                background-color: rgb(220, 220, 220);
+            }
+            
+            QMenu::item:hover:pressed{
+                background-color: rgb(190, 190, 190);
+            }
+            
+            QMenu::item:selected:!active{
+                background-color: rgb(190, 190, 190);
+            }
+            
+            QMenu::item:selected{
+                background-color: rgb(220, 220, 220);
             }
             """
 
@@ -353,11 +405,11 @@ class mainWindow(QMainWindow):
         self.listWidgetStyleSheet = \
             """
             QListWidget{
-                border:1px solid black;
+                border:1px solid gray;
             }
             
             QListWidget::item{
-                background-color:rgb(255, 255, 255);
+                background-color:white;
                 color:black;
                 border-style:outset;
             }
@@ -365,9 +417,17 @@ class mainWindow(QMainWindow):
             QListWidget::item:hover:enabled{
                 background-color: rgb(220, 220, 220);
             }
-
+            
+            QListWidget::item:hover:pressed{
+                background-color: rgb(190, 190, 190);
+            }
+            
+            QListWidget::item:selected:!active{
+                background-color: rgb(190, 190, 190);
+            }
+            
             QListWidget::item:selected{
-                background-color: rgb(200, 200, 200);
+                background-color: rgb(220, 220, 220);
             }
             """
 
@@ -380,9 +440,9 @@ class mainWindow(QMainWindow):
             geometryConstants.ALBUMARTISTSLIST_HEIGHT,
             QtCore.Qt.SortOrder.AscendingOrder)
         self.albumArtistsList.setStyleSheet(self.listWidgetStyleSheet)
+        self.albumArtistsList.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
-        self.setItemsOfListWidget(self.albumArtistsList,
-                                  db.getListOfAllAlbumArtists())
+        self.loadAlbumArtists()
 
         # настройка UI-списка альбомов исполнителя:
         self.albumsOfArtistList = self.getConfiguredWidget(
@@ -393,6 +453,7 @@ class mainWindow(QMainWindow):
             geometryConstants.ALBUMSOFARTISTLIST_HEIGHT,
             QtCore.Qt.SortOrder.AscendingOrder)
         self.albumsOfArtistList.setStyleSheet(self.listWidgetStyleSheet)
+        self.albumsOfArtistList.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         # настройка UI-списка треков альбома:
         self.tracksOfAlbumList = self.getConfiguredWidget(
@@ -403,6 +464,7 @@ class mainWindow(QMainWindow):
             geometryConstants.TRACKSOFALBUMLIST_HEIGHT,
             QtCore.Qt.SortOrder.AscendingOrder)
         self.tracksOfAlbumList.setStyleSheet(self.listWidgetStyleSheet)
+        self.tracksOfAlbumList.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
 
         # настройка надписей:
         self.trackOnPlaybackAlbumArtistLabel = self.getConfiguredWidget(
@@ -428,7 +490,34 @@ class mainWindow(QMainWindow):
             geometryConstants.CURRENTTIMELABEL_WIDTH,
             geometryConstants.CURRENTTIMELABEL_HEIGHT)
         self.currentTimeLabel.setFont(self.font)
-        self.currentTimeLabel.setText("00:00")
+        self.currentTimeLabel.setText("")
+
+        self.allTracksLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.ALLTRACKSLABEL_X,
+            geometryConstants.ALLTRACKSLABEL_Y,
+            geometryConstants.ALLTRACKSLABEL_WIDTH,
+            geometryConstants.ALLTRACKSLABEL_HEIGHT)
+        self.allTracksLabel.setFont(self.font)
+        self.allTracksLabel.setText("Все треки")
+
+        self.allAlbumArtistsLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.ALLALBUMARTISTSLABEL_X,
+            geometryConstants.ALLALBUMARTISTSLABEL_Y,
+            geometryConstants.ALLALBUMARTISTSLABEL_WIDTH,
+            geometryConstants.ALLALBUMARTISTSLABEL_HEIGHT)
+        self.allAlbumArtistsLabel.setFont(self.font)
+        self.allAlbumArtistsLabel.setText("Все исполнители")
+
+        self.allAlbumsOfArtistLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.ALLALBUMSOFARTISTLABEL_X,
+            geometryConstants.ALLALBUMSOFARTISTLABEL_Y,
+            geometryConstants.ALLALBUMSOFARTISTLABEL_WIDTH,
+            geometryConstants.ALLALBUMSOFARTISTLABEL_HEIGHT)
+        self.allAlbumsOfArtistLabel.setFont(self.font)
+        self.allAlbumsOfArtistLabel.setText("Треки исполнителя")
 
         # настройка средства проигрывания треков:
         self.player = playbackTool()
@@ -444,7 +533,6 @@ class mainWindow(QMainWindow):
         self.timerMinutesValue = 0
 
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.updateTimer)
 
         # инициализация атрибутов, связанных с выбором пользователя:
         self.trackOnPlaybackTitle = ""
@@ -458,13 +546,14 @@ class mainWindow(QMainWindow):
 
         self.playFirstTrackOfCollection = True
         self.playOtherTrack = False
+        self.closeApp = False
 
         self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
 
         # настройка соединений сигналов со слотами:
         self.connectSignalWithSlot(
             self.buttonAddTracks.clicked,
-            self.addTracks)
+            self.addTracksThread)
 
         self.connectSignalWithSlot(
             self.tableListContextMenuActionDeleteTrack.triggered,
@@ -497,6 +586,10 @@ class mainWindow(QMainWindow):
         self.connectSignalWithSlot(
             self.albumsOfArtistList.itemDoubleClicked,
             self.loadTracksOfAlbum)
+
+        self.connectSignalWithSlot(
+            self.timer.timeout,
+            self.updateTimer)
 
     @staticmethod
     def getConfiguredWidget(widget,
@@ -662,6 +755,20 @@ class mainWindow(QMainWindow):
         for itemName in itemsNamesList:
             self.addItemToListWidget(listWidget, itemName)
 
+    def loadAlbumArtists(self):
+        """
+        загружает в UI-список исполнителей
+        альбомов артистов из таблицы
+        музыкальных композиций,
+        находящейся в базе данных
+        приложения.
+        """
+
+        self.albumArtistsList.clear()
+
+        self.setItemsOfListWidget(self.albumArtistsList,
+                                  db.getListOfAllAlbumArtists())
+
     def loadAlbumsOfArtist(self, item):
         """
         загружает в UI-список альбомов
@@ -676,6 +783,8 @@ class mainWindow(QMainWindow):
         по которой пользователь совершил
         двойной клик.
         """
+
+        self.tracksOfAlbumList.clear()
 
         self.choosedAlbumArtistName = item.text()
 
@@ -760,6 +869,8 @@ class mainWindow(QMainWindow):
 
                 self.addTrackToTableList()
 
+            self.loadAlbumArtists()
+
     def contextMenuEvent(self, event):
         """
         выводит контекстное меню табличного
@@ -839,6 +950,30 @@ class mainWindow(QMainWindow):
 
         db.deleteTrack(*trackInfoList)
 
+    def resetTimer(self):
+        """
+        сбрасывает таймер.
+        """
+
+        self.stopTimer()
+
+        self.timerSecondsValue = 0
+        self.timerMinutesValue = 0
+
+    def runTimer(self):
+        """
+        запускает таймер.
+        """
+
+        self.timer.start(1000)
+
+    def stopTimer(self):
+        """
+        останавливает таймер.
+        """
+
+        self.timer.stop()
+
     def playTrack(self):
         """
         загружает трек в средство проигрывания
@@ -846,9 +981,12 @@ class mainWindow(QMainWindow):
         """
 
         if self.playOtherTrack or self.playFirstTrackOfCollection:
+            self.resetTimer()
+
             self.currentTimeLabel.setText("00:00")
 
-            self.trackOnPlaybackIndex = self.choosedTrackIndex
+            if self.playOtherTrack:
+                self.trackOnPlaybackIndex = self.choosedTrackIndex
 
             trackInfoList = self.playbackQueue[self.trackOnPlaybackIndex]
 
@@ -867,28 +1005,25 @@ class mainWindow(QMainWindow):
 
             self.buttonPlayPauseTrack.setIcon(self.pauseIcon)
 
-            self.timerSecondsValue = 0
-            self.timerMinutesValue = 0
-
-            self.timer.start(1000)
-
             if self.playOtherTrack:
                 self.playOtherTrack = False
 
             if self.playFirstTrackOfCollection:
                 self.playFirstTrackOfCollection = False
 
+            self.runTimer()
+
             self.playbackToolEventFilter()
         elif self.player.isPlaybackPaused():
             self.player.resumePlayback()
 
-            self.timer.start(1000)
+            self.runTimer()
 
             self.buttonPlayPauseTrack.setIcon(self.pauseIcon)
         elif self.player.isBusy():
             self.player.pausePlayback()
 
-            self.timer.stop()
+            self.stopTimer()
 
             self.buttonPlayPauseTrack.setIcon(self.playIcon)
 
@@ -903,37 +1038,32 @@ class mainWindow(QMainWindow):
         while isPlaybackRunning:
             for event in pygame.event.get():
                 if event.type == playbackControlConstants.MUSIC_END:
-                    if self.playbackDirection == \
-                            playbackControlConstants.PLAY_NEXT_TRACK and \
-                            len(self.playbackQueue) - self.trackOnPlaybackIndex > 1:
-                        self.choosedTrackIndex = self.trackOnPlaybackIndex + 1
-                        self.playOtherTrack = True
+                    if not self.closeApp:
+                        if (self.playbackDirection ==
+                            playbackControlConstants.PLAY_PREVIOUS_TRACK and
+                            self.trackOnPlaybackIndex != 0) or \
+                                (self.playbackDirection ==
+                                 playbackControlConstants.PLAY_NEXT_TRACK and
+                                 len(self.playbackQueue) - self.trackOnPlaybackIndex > 1):
+                            self.choosedTrackIndex = self.trackOnPlaybackIndex + \
+                                                     self.playbackDirection
 
-                        self.playTrack()
-                    elif self.playbackDirection == \
-                            playbackControlConstants.PLAY_PREVIOUS_TRACK:
-                        if self.trackOnPlaybackIndex == 0:
-                            self.rewindTrack()
+                            self.playOtherTrack = True
+
+                            self.playTrack()
                         else:
-                            self.choosedTrackIndex = self.trackOnPlaybackIndex - 1
+                            isPlaybackRunning = False
 
-                        self.playOtherTrack = True
+                            time.sleep(1)
 
-                        self.playTrack()
+                            self.trackOnPlaybackTitleLabel.setText("")
+                            self.trackOnPlaybackAlbumArtistLabel.setText("")
 
-                        self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
-                    else:
-                        isPlaybackRunning = False
+                            self.buttonPlayPauseTrack.setIcon(self.playIcon)
 
-                        time.sleep(1)
+                            self.resetTimer()
 
-                        self.trackOnPlaybackTitleLabel.setText("")
-                        self.trackOnPlaybackAlbumArtistLabel.setText("")
-
-                        self.buttonPlayPauseTrack.setIcon(self.playIcon)
-
-                        self.timer.stop()
-                        self.currentTimeLabel.setText("00:00")
+                            self.currentTimeLabel.setText("")
 
     def playTrackByDoubleClickOnTitle(self, item):
         """
@@ -983,6 +1113,12 @@ class mainWindow(QMainWindow):
         if not self.player.isBusy():
             self.buttonPlayPauseTrack.setIcon(self.playIcon)
 
+        self.resetTimer()
+
+        self.currentTimeLabel.setText("00:00")
+
+        self.runTimer()
+
     def stopTrack(self):
         """
         останавливает воспроизведение треков.
@@ -1018,8 +1154,11 @@ class mainWindow(QMainWindow):
         за проигрываемым.
         """
 
-        self.playbackDirection = playbackControlConstants.PLAY_PREVIOUS_TRACK
-        self.stopTrack()
+        if self.trackOnPlaybackIndex == 0:
+            self.rewindTrack()
+        else:
+            self.playbackDirection = playbackControlConstants.PLAY_PREVIOUS_TRACK
+            self.stopTrack()
 
     def playNextTrack(self):
         """
@@ -1028,8 +1167,9 @@ class mainWindow(QMainWindow):
         за проигрываемым (если он есть).
         """
 
-        self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
-        self.stopTrack()
+        if len(self.playbackQueue) - self.trackOnPlaybackIndex > 1:
+            self.playbackDirection = playbackControlConstants.PLAY_NEXT_TRACK
+            self.stopTrack()
 
     @staticmethod
     def getFormattedStrOfTimeParameterValue(timeParameterValue):
@@ -1080,6 +1220,36 @@ class mainWindow(QMainWindow):
             self.timerMinutesValue += 1
 
         self.displayCurrentTime()
+
+    def updateTimerThread(self):
+        """
+        запускает обновление таймера в отдельный
+        поток.
+        """
+
+        task = Thread(target=self.updateTimer)
+
+        task.start()
+
+    def closeEvent(self, event):
+        """
+        обрабатывает закрытие приложения.
+        """
+
+        self.closeApp = True
+
+        self.stopTrack()
+        self.close()
+
+    def addTracksThread(self):
+        """
+        запускает добавление треков в отдельный
+        поток.
+        """
+
+        task1 = Thread(target=self.addTracks)
+
+        task1.start()
 
 
 def runApplication():

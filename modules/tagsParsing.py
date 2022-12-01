@@ -2,6 +2,7 @@ import modules.trackDataExtraction as tde
 import modules.database as db
 
 import enum
+from strenum import StrEnum
 
 from pathlib import Path
 
@@ -9,6 +10,11 @@ import mutagen
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 from mutagen.id3 import ID3
+
+
+class tagsDefaultStrConstants(StrEnum):
+    DEFAULT_STR_TAG = "Неизвестно"
+    DEFAULT_INT_TAG = "1"
 
 
 def getKeysDict(tagsDict):
@@ -68,7 +74,7 @@ def prescribeTagsOfUnknownTrack(filepath, tagsDict):
         elif key == 'trackNumber':
             infoText = str(db.getNTracksWithTagsOfUnknownTrack() + 1)
         else:
-            infoText = "Неизвестно"
+            infoText = tagsDefaultStrConstants.DEFAULT_STR_TAG
 
         if isinstance(tagsDict, mutagen.mp3.MP3):
             tagsDict[keysDict[key]] = mutagen.id3.TextFrame(encoding=3,
@@ -124,13 +130,20 @@ def getInfoFromTagsDictByKey(tagsDict,
 
     keysDict = getKeysDict(tagsDict)
 
-    info = str(tagsDict[keysDict[key]][0])
+    info = tagsDict.get(keysDict[key])
 
-    if key == "trackNumber" and isinstance(tagsDict, mutagen.mp3.MP3):
-        slashPos = info.find('/')
-        info = info[:slashPos]
+    if info is not None:
+        infoStr = str(info[0])
 
-    return info
+        if key == 'trackNumber' and isinstance(tagsDict, mutagen.mp3.MP3):
+            slashPos = info.find('/')
+            infoStr = infoStr[:slashPos]
+    elif key == 'trackNumber':
+        infoStr = tagsDefaultStrConstants.DEFAULT_STR_TAG
+    else:
+        infoStr = tagsDefaultStrConstants.DEFAULT_INT_TAG
+
+    return infoStr
 
 
 def getTagsList(tagsDict):
