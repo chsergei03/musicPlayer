@@ -50,7 +50,6 @@ def getBPM(filepath):
     """
 
     wave, sampleRate = librosa.load(filepath)
-    onsetEnv = librosa.onset.onset_strength(y=wave, sr=sampleRate)
-    tempo = librosa.beat.tempo(onset_envelope=onsetEnv, sr=sampleRate)
+    tempo, beat_frames = librosa.beat.beat_track(y=wave, sr=sampleRate)
 
-    return int(*tempo)
+    return int(tempo)
