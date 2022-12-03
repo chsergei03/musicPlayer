@@ -134,6 +134,9 @@ def musicTracksTableInit():
         yearRelease INT NOT NULL,
         genre TEXT NOT NULL,
         numberInTracklist INTEGER NOT NULL,
+        bitDepth INTEGER NOT NULL,
+        bitRate INTEGER NOT NULL,
+        duration INTEGER NOT NULL,
         bpm INTEGER NOT NULL);""",
         executeQueryConstants.NO_SELECT_QUERY)
 
@@ -163,15 +166,20 @@ def addRow(fileToAddPath):
         (fileToAddPath,))
 
     if rowWithFileToAddPath is None:
+        tagsDict = tp.getTagsDict(fileToAddPath)
+
         executeQuery(
             """INSERT INTO musicTracks 
             (filepath, title, album, artist, albumArtist, 
-            yearRelease, genre, numberInTracklist, bpm)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);""",
+            yearRelease, genre, numberInTracklist, bitDepth, 
+            bitRate, duration, bpm)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);""",
             executeQueryConstants.NO_SELECT_QUERY,
             tuple([fileToAddPath,
-                   *(tp.getTagsList(
-                       tp.getTagsDict(fileToAddPath))),
+                   *(tp.getTagsList(tagsDict)),
+                   tde.getBitDepth(fileToAddPath),
+                   tagsDict.info.bitrate,
+                   int(tagsDict.info.length),
                    tde.getBPM(fileToAddPath)]))
 
 
@@ -397,6 +405,28 @@ def getNTracksWithTagsOfUnknownTrack():
         ("Неизвестно",))
 
     return len(tracksWithTagsOfUnknownTrackList)
+
+
+def getListOfTrackWithCertainDurationAndBPM(duration, bpm):
+    """
+    возвращает список с списками информации о треках
+    продолжительность и темп которых равны заданным
+    значениям из базы данных приложения.
+    :param duration: продолжительность в секундах.
+    :param bpm: темп.
+    :return: список с списками информации о треках
+    продолжительность и темп которых равны заданным
+    значениям из базы данных приложения.
+    """
+
+    listOfTrackWithCertainDurationAndBPM = executeQuery(
+        """SELECT title, artist, filepath, bitDepth, bitRate
+        FROM musicTracks
+        WHERE duration = ? AND bpm = ?""",
+        executeQueryConstants.GET_ALL_ROWS_BY_SELECT_QUERY,
+        (duration, bpm,))
+
+    return listOfTrackWithCertainDurationAndBPM
 
 
 def initDatabaseIfNotExists():

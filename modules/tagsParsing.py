@@ -8,8 +8,10 @@ from pathlib import Path
 
 import mutagen
 from mutagen.mp3 import MP3
-from mutagen.flac import FLAC
 from mutagen.id3 import ID3
+from mutagen.flac import FLAC
+
+import itertools
 
 
 class tagsDefaultStrConstants(StrEnum):
@@ -19,15 +21,15 @@ class tagsDefaultStrConstants(StrEnum):
 
 def getKeysDict(tagsDict):
     """
-    возвращает словарь ключей
-    словаря тегов музыкальной
-    композиции.
-    :param tagsDict: словарь
-    тегов, присвоенных музыкальной
-    композиции.
-    :return: словарь ключей
-    словаря тегов трека keysDict.
-    """
+        возвращает словарь ключей
+        словаря тегов музыкальной
+        композиции.
+        :param tagsDict: словарь
+        тегов, присвоенных музыкальной
+        композиции.
+        :return: словарь ключей
+        словаря тегов трека keysDict.
+        """
 
     if isinstance(tagsDict, mutagen.flac.FLAC):
         titleKey = 'TITLE'
@@ -135,9 +137,6 @@ def getInfoFromTagsDictByKey(tagsDict,
     if info is not None:
         infoStr = str(info[0])
 
-        if key == 'trackNumber' and isinstance(tagsDict, mutagen.mp3.MP3):
-            slashPos = info.find('/')
-            infoStr = infoStr[:slashPos]
     elif key == 'trackNumber':
         infoStr = tagsDefaultStrConstants.DEFAULT_STR_TAG
     else:
@@ -166,3 +165,36 @@ def getTagsList(tagsDict):
                                                  key))
 
     return tagsList
+
+
+def copyTags(track1Filepath, track2Filepath):
+    """
+    копирует теги из одного трека в другой
+    :param track1Filepath: строка, содержащая путь
+    к файлу первого трека.
+    :param track2Filepath: строка, содержащая путь
+    к файлу второго трека.
+    """
+
+    tagsDict1 = getTagsDict(track1Filepath)
+    keysDict1 = getKeysDict(tagsDict1)
+
+    tagsDict2 = getTagsDict(track2Filepath)
+    keysDict2 = getKeysDict(tagsDict2)
+
+    for key1, key2 in zip(keysDict1, keysDict2):
+        tagsDict2[keysDict2[key2]] = str(tagsDict1[keysDict1[key1]][0])
+
+    tagsDict2.save()
+
+
+def deleteTags(filepath):
+    """
+    удаляет теги у трека.
+    :param filepath: строка, содержащая
+    путь к файлу трека.
+    """
+
+    tagsDict = getTagsDict(filepath)
+
+    tagsDict.clear()

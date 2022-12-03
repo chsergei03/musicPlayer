@@ -1,4 +1,7 @@
 import modules.database as db
+import modules.trackDataExtraction as tde
+import modules.trackcmp as tc
+import modules.tagsParsing as tp
 
 import sys
 import enum
@@ -15,7 +18,7 @@ import easygui
 from PyQt6 import QtCore
 from PyQt6.QtCore import \
     Qt, QEvent, \
-    QObject, QTimer
+    QObject, QTimer, QSize
 
 from PyQt6.QtGui import \
     QMouseEvent, QIcon, \
@@ -28,7 +31,8 @@ from PyQt6.QtWidgets import \
     QMenu, QAbstractItemView, \
     QWidgetAction, QPushButton, \
     QTableWidget, QTableWidgetItem, \
-    QListWidget, QListWidgetItem
+    QListWidget, QListWidgetItem, \
+    QMessageBox
 
 from threading import Thread
 
@@ -70,7 +74,7 @@ class playbackTool:
         """
 
         return not self.isBusy() and self.pos() != \
-               playbackControlConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
+            playbackControlConstants.TRACK_POS_WHERE_THERE_IS_NO_PLAYBACK
 
     @staticmethod
     def load(filepath):
@@ -174,10 +178,10 @@ class geometryConstants(enum.IntEnum):
     TRACKSOFALBUMLIST_WIDTH, TRACKSOFALBUMLIST_HEIGHT = 217, 305
 
     TRACKONPLAYBACKALBUMARTISTLABEL_X, TRACKONPLAYBACKALBUMARTISTLABEL_Y = 250, 15
-    TRACKONPLAYBACKALBUMARTISTLABEL_WIDTH, TRACKONPLAYBACKALBUMARTISTLABEL_HEIGHT = 100, 20
+    TRACKONPLAYBACKALBUMARTISTLABEL_WIDTH, TRACKONPLAYBACKALBUMARTISTLABEL_HEIGHT = 500, 20
 
     TRACKONPLAYBACKTITLELABEL_X, TRACKONPLAYBACKTITLELABEL_Y = 250, 35
-    TRACKONPLAYBACKTITLELABEL_WIDTH, TRACKONPLAYBACKTITLELABEL_HEIGHT = 300, 20
+    TRACKONPLAYBACKTITLELABEL_WIDTH, TRACKONPLAYBACKTITLELABEL_HEIGHT = 500, 20
 
     CURRENTTIMELABEL_X, CURRENTTIMELABEL_Y = 250, 55
     CURRENTTIMELABEL_WIDTH, CURRENTTIMELABEL_HEIGHT = 40, 20
@@ -193,6 +197,8 @@ class geometryConstants(enum.IntEnum):
 
     TRACKSOFALBUMLABEL_X, TRACKSOFALBUMLABEL_Y = 694, 75
     TRACKSOFALBUMLABEL_WIDTH, TRACKSOFALBUMLABEL_HEIGHT = 220, 20
+
+    ICON_SIZE = 25
 
 
 class tableListConstants(enum.IntEnum):
@@ -259,6 +265,9 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             self.addIcon)
+        self.buttonAddTracks.setIconSize(QSize(
+            geometryConstants.ICON_SIZE,
+            geometryConstants.ICON_SIZE))
         self.buttonAddTracks.setStyleSheet(self.buttonStyleSheet)
 
         self.buttonPlayPauseTrack = self.getConfiguredWidget(
@@ -268,6 +277,9 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             self.playIcon)
+        self.buttonPlayPauseTrack.setIconSize(QSize(
+            geometryConstants.ICON_SIZE,
+            geometryConstants.ICON_SIZE))
         self.buttonPlayPauseTrack.setStyleSheet(self.buttonStyleSheet)
 
         self.buttonPreviousTrack = self.getConfiguredWidget(
@@ -277,6 +289,9 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             self.prevIcon)
+        self.buttonPreviousTrack.setIconSize(QSize(
+            geometryConstants.ICON_SIZE,
+            geometryConstants.ICON_SIZE))
         self.buttonPreviousTrack.setStyleSheet(self.buttonStyleSheet)
 
         self.buttonNextTrack = self.getConfiguredWidget(
@@ -286,6 +301,9 @@ class mainWindow(QMainWindow):
             geometryConstants.BUTTON_WIDTH,
             geometryConstants.BUTTON_HEIGHT,
             self.nextIcon)
+        self.buttonNextTrack.setIconSize(QSize(
+            geometryConstants.ICON_SIZE,
+            geometryConstants.ICON_SIZE))
         self.buttonNextTrack.setStyleSheet(self.buttonStyleSheet)
 
         # настройка параметров табличного UI-списка
@@ -517,7 +535,34 @@ class mainWindow(QMainWindow):
             geometryConstants.ALLALBUMSOFARTISTLABEL_WIDTH,
             geometryConstants.ALLALBUMSOFARTISTLABEL_HEIGHT)
         self.allAlbumsOfArtistLabel.setFont(self.font)
-        self.allAlbumsOfArtistLabel.setText("Треки исполнителя")
+        self.allAlbumsOfArtistLabel.setText("Альбомы исполнителя")
+
+        self.tracksOfAlbumLabel = self.getConfiguredWidget(
+            QLabel(self),
+            geometryConstants.TRACKSOFALBUMLABEL_X,
+            geometryConstants.TRACKSOFALBUMLABEL_Y,
+            geometryConstants.TRACKSOFALBUMLABEL_WIDTH,
+            geometryConstants.TRACKSOFALBUMLABEL_HEIGHT)
+        self.tracksOfAlbumLabel.setFont(self.font)
+        self.tracksOfAlbumLabel.setText("Треки альбома")
+
+        self.messageDuplicateOfLQ = QMessageBox(self)
+        self.messageDuplicateOfLQ.setWindowTitle("music player")
+        self.messageDuplicateOfLQ.setIcon(QMessageBox.Icon.Information)
+        self.messageDuplicateOfLQ.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self.messageDuplicateOfLQ.setFont(self.font)
+
+        self.messageDuplicateOfHQ = QMessageBox(self)
+        self.messageDuplicateOfHQ.setWindowTitle("music player")
+        self.messageDuplicateOfHQ.setIcon(QMessageBox.Icon.Information)
+        self.messageDuplicateOfHQ.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self.messageDuplicateOfHQ.setFont(self.font)
+
+        self.messageMP3 = QMessageBox(self)
+        self.messageMP3.setWindowTitle("music player")
+        self.messageMP3.setIcon(QMessageBox.Icon.Information)
+        self.messageMP3.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self.messageMP3.setFont(self.font)
 
         # настройка средства проигрывания треков:
         self.player = playbackTool()
@@ -590,6 +635,10 @@ class mainWindow(QMainWindow):
         self.connectSignalWithSlot(
             self.timer.timeout,
             self.updateTimer)
+
+        self.connectSignalWithSlot(
+            self.messageDuplicateOfLQ.buttonClicked,
+            self.closeMessageDuplicateOfLQ)
 
     @staticmethod
     def getConfiguredWidget(widget,
@@ -856,20 +905,97 @@ class mainWindow(QMainWindow):
         композиций, находящуюся в базе данных плеера.
         """
 
-        filesToAddPaths = easygui.fileopenbox(
-            filetypes="*.mp3, *.flac",
-            multiple=True)
+        fileToAddPath = easygui.fileopenbox(
+            filetypes="*.mp3, *.flac", multiple=False)
 
-        if filesToAddPaths:
-            for fileToAddPath in filesToAddPaths:
+        if fileToAddPath:
+            cancelledTrackTitle = ""
+
+            addTrackFlag = True
+
+            trackFileExtension = tde.getTrackFileExtension(fileToAddPath)
+            tagsDict = tp.getTagsDict(fileToAddPath)
+            trackBitDepth = tde.getBitDepth(fileToAddPath)
+            trackBitRate = tagsDict.info.bitrate
+            trackDuration = int(tagsDict.info.length)
+            trackBPM = tde.getBPM(fileToAddPath)
+
+            listOfPotentialDuplicates = \
+                db.getListOfTrackWithCertainDurationAndBPM(trackDuration,
+                                                           trackBPM)
+
+            print(listOfPotentialDuplicates)
+
+            trackHQ = False
+
+            if listOfPotentialDuplicates:
+                i = 0
+                areEqual = False
+
+                while i < len(listOfPotentialDuplicates) and not areEqual:
+                    areEqual = tc.areIdenticalTracks(
+                        fileToAddPath,
+                        listOfPotentialDuplicates[i][-3]) or \
+                               len(listOfPotentialDuplicates) == 1
+
+                    if areEqual:
+                        if trackBitDepth > int(listOfPotentialDuplicates[i][-2]) or \
+                                trackBitRate > int(listOfPotentialDuplicates[i][-1]):
+                            tp.copyTags(
+                                listOfPotentialDuplicates[i][-3],
+                                fileToAddPath)
+
+                            db.deleteTrack(
+                                listOfPotentialDuplicates[i][0],
+                                listOfPotentialDuplicates[i][1])
+
+                            self.loadTracksFromMusicTracksTableToTableList()
+
+                            if not trackHQ:
+                                trackHQ = True
+                        else:
+                            cancelledTrackTitle = listOfPotentialDuplicates[i][0]
+
+                            addTrackFlag = False
+
+                    i += 1
+
+            if addTrackFlag:
                 db.addRow(fileToAddPath)
+
+                self.loadTracksFromMusicTracksTableToTableList()
 
                 self.allTracksInDatabaseList.append(
                     db.getTrackInfoListByPath(fileToAddPath))
 
-                self.addTrackToTableList()
+                if trackHQ:
+                    self.messageDuplicateOfLQ.move(self.pos())
+                    self.messageDuplicateOfLQ.setText(
+                        "Трек '" +
+                        cancelledTrackTitle +
+                        "' был заменен на вариант в более высоком качестве.\n")
 
-            self.loadAlbumArtists()
+                    self.messageDuplicateOfLQ.exec()
+
+                self.loadAlbumArtists()
+            else:
+                self.messageDuplicateOfLQ.move(self.pos())
+                self.messageDuplicateOfLQ.setText(
+                    "Трек '" +
+                    cancelledTrackTitle +
+                    "' уже загружен в плеер в более высоком качестве.\n")
+
+                self.messageDuplicateOfLQ.exec()
+
+    def addTracksThread(self):
+        """
+        запускает добавление треков в отдельный
+        поток.
+        """
+
+        addTracksTask = Thread(target=self.addTracks)
+
+        addTracksTask.start()
 
     def contextMenuEvent(self, event):
         """
@@ -950,6 +1076,10 @@ class mainWindow(QMainWindow):
 
         db.deleteTrack(*trackInfoList)
 
+        self.loadAlbumArtists()
+        self.albumsOfArtistList.clear()
+        self.tracksOfAlbumList.clear()
+
     def resetTimer(self):
         """
         сбрасывает таймер.
@@ -991,8 +1121,8 @@ class mainWindow(QMainWindow):
             trackInfoList = self.playbackQueue[self.trackOnPlaybackIndex]
 
             self.trackOnPlaybackTitle, \
-            self.trackOnPlaybackAlbumArtist, \
-            filepath = trackInfoList
+                self.trackOnPlaybackAlbumArtist, \
+                filepath = trackInfoList
 
             self.trackOnPlaybackTitleLabel.setText(
                 self.trackOnPlaybackTitle)
@@ -1064,6 +1194,8 @@ class mainWindow(QMainWindow):
                             self.resetTimer()
 
                             self.currentTimeLabel.setText("")
+
+                            self.playFirstTrackOfCollection = True
 
     def playTrackByDoubleClickOnTitle(self, item):
         """
@@ -1241,15 +1373,8 @@ class mainWindow(QMainWindow):
         self.stopTrack()
         self.close()
 
-    def addTracksThread(self):
-        """
-        запускает добавление треков в отдельный
-        поток.
-        """
-
-        task1 = Thread(target=self.addTracks)
-
-        task1.start()
+    def closeMessageDuplicateOfLQ(self):
+        self.messageDuplicateOfLQ.close()
 
 
 def runApplication():
@@ -1258,7 +1383,6 @@ def runApplication():
     """
 
     musicPlayerApplication = QApplication(sys.argv)
-
     window = mainWindow()
     window.show()
 
